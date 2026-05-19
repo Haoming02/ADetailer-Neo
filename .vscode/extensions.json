@@ -1,8 +1,0 @@
-{
-  "recommendations": [
-    "ms-python.vscode-pylance",
-    "kevinrose.vsc-python-indent",
-    "charliermarsh.ruff",
-    "shardulm94.trailing-spaces"
-  ]
-}
