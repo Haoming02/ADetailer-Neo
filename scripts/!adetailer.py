@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import gradio as gr
-from aaaaaa.conditional import create_binary_mask, schedulers
 from aaaaaa.helper import (
     PPImage,
     copy_extra_params,
@@ -72,10 +71,12 @@ from modules.devices import NansException
 from modules.processing import (
     Processed,
     StableDiffusionProcessingImg2Img,
+    create_binary_mask,
     create_infotext,
     process_images,
 )
 from modules.sd_samplers import all_samplers
+from modules.sd_schedulers import schedulers
 from modules.shared import cmd_opts, opts, state
 
 if TYPE_CHECKING:
