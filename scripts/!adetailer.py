@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import platform
 import re
-import sys
-import traceback
 from collections.abc import Sequence
 from copy import copy
 from functools import partial
@@ -25,7 +23,6 @@ from aaaaaa.p_method import (
     need_call_postprocess,
     need_call_process,
 )
-from aaaaaa.traceback import rich_traceback
 from aaaaaa.ui import WebuiInfo, adui, ordinal, suffix
 from adetailer import (
     ADETAILER,
@@ -62,11 +59,10 @@ from controlnet_ext import (
     get_cn_models,
 )
 from PIL import Image, ImageChops
-from rich import print  # noqa: A004  Shadowing built-in 'print'
+from rich import print
 
 import modules
-from modules import images, paths, script_callbacks, scripts, shared
-from modules.devices import NansException
+from modules import errors, images, paths, script_callbacks, scripts, shared
 from modules.processing import (
     Processed,
     StableDiffusionProcessingImg2Img,
@@ -151,12 +147,8 @@ class AfterDetailerScript(scripts.Script):
         if controlnet_exists:
             try:
                 self.controlnet_ext.init_controlnet()
-            except ImportError:
-                error = traceback.format_exc()
-                print(
-                    f"[-] ADetailer: ControlNetExt init failed:\n{error}",
-                    file=sys.stderr,
-                )
+            except Exception as e:
+                errors.display(e, "init_controlnet")
 
     def update_controlnet_args(self, p, args: ADetailerArgs) -> None:
         if self.controlnet_ext is None:
@@ -187,7 +179,7 @@ class AfterDetailerScript(scripts.Script):
         for arg in arg_list:
             try:
                 adarg = ADetailerArgs(**arg)
-            except ValueError:  # noqa: PERF203
+            except ValueError:
                 continue
             else:
                 if not adarg.need_skip():
@@ -243,9 +235,8 @@ class AfterDetailerScript(scripts.Script):
         for n, arg_dict in enumerate(args, 1):
             try:
                 inp = ADetailerArgs(**arg_dict)
-            except ValueError:
-                msg = f"[-] ADetailer: ValidationError when validating {ordinal(n)} arguments:"
-                print(msg, arg_dict, file=sys.stderr)
+            except ValueError as e:
+                errors.display(e, "validation")
                 continue
 
             all_inputs.append(inp)
@@ -767,7 +758,6 @@ class AfterDetailerScript(scripts.Script):
                 p2.width, p2.height, pred.bboxes[j]
             )
 
-    @rich_traceback
     def process(self, p, *args_):
         if getattr(p, "_ad_disabled", False):
             return
@@ -868,14 +858,9 @@ class AfterDetailerScript(scripts.Script):
 
             self.fix_p2(p, p2, pp, args, pred, j)
 
-            try:
-                processed = process_images(p2)
-            except NansException as e:
-                msg = f"[-] ADetailer: 'NansException' occurred with {ordinal(n + 1)} settings.\n{e}"
-                print(msg, file=sys.stderr)
-                continue
-            finally:
-                p2.close()
+            processed = process_images(p2)
+
+            p2.close()
 
             if not processed.images:
                 processed = None
@@ -891,7 +876,6 @@ class AfterDetailerScript(scripts.Script):
 
         return False
 
-    @rich_traceback
     def postprocess_image(self, p, pp: PPImage, *args_):
         if getattr(p, "_ad_disabled", False) or not self.is_ad_enabled(*args_):
             return
@@ -1180,12 +1164,8 @@ def make_axis_on_xyz_grid():
 def on_before_ui():
     try:
         make_axis_on_xyz_grid()
-    except Exception:
-        error = traceback.format_exc()
-        print(
-            f"[-] ADetailer: xyz_grid error:\n{error}",
-            file=sys.stderr,
-        )
+    except Exception as e:
+        errors.display(e, "xyz_grid")
 
 
 # api
