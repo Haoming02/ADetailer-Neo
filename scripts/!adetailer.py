@@ -14,7 +14,6 @@ import gradio as gr
 from aaaaaa.helper import (
     PPImage,
     copy_extra_params,
-    disable_safe_unpickle,
     pause_total_tqdm,
     preserve_prompts,
 )
@@ -827,14 +826,13 @@ class AfterDetailerScript(scripts.Script):
 
         else:
             ad_model = self.get_ad_model(args.ad_model)
-            with disable_safe_unpickle():
-                pred = ultralytics_predict(
-                    ad_model,
-                    image=pp.image,
-                    confidence=args.ad_confidence,
-                    device=self.ultralytics_device,
-                    classes=args.ad_model_classes,
-                )
+            pred = ultralytics_predict(
+                ad_model,
+                image=pp.image,
+                confidence=args.ad_confidence,
+                device=self.ultralytics_device,
+                classes=args.ad_model_classes,
+            )
 
         if pred.preview is None:
             print(

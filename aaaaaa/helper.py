@@ -1,37 +1,12 @@
-from __future__ import annotations
-
-import os
 from contextlib import contextmanager
-from copy import copy
 from typing import Any
 from unittest.mock import patch
 
-import torch
 from PIL import Image
 from typing_extensions import Protocol
 
-from modules import safe
 from modules.processing import StableDiffusionProcessing
-from modules.shared import cmd_opts, opts
-
-
-@contextmanager
-def change_torch_load():
-    orig = torch.load
-    try:
-        torch.load = safe.unsafe_torch_load
-        yield
-    finally:
-        torch.load = orig
-
-
-@contextmanager
-def disable_safe_unpickle():
-    with (
-        patch.dict(os.environ, {"TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": "1"}, clear=False),
-        patch.object(cmd_opts, "disable_safe_unpickle", True),
-    ):
-        yield
+from modules.shared import opts
 
 
 @contextmanager
@@ -42,10 +17,12 @@ def pause_total_tqdm():
 
 @contextmanager
 def preserve_prompts(p: StableDiffusionProcessing):
-    all_pt = copy(p.all_prompts)
-    all_ng = copy(p.all_negative_prompts)
     try:
+        all_pt = p.all_prompts.copy()
+        all_ng = p.all_negative_prompts.copy()
+
         yield
+
     finally:
         p.all_prompts = all_pt
         p.all_negative_prompts = all_ng
