@@ -6,28 +6,16 @@ from enum import Enum
 from functools import cached_property, partial
 from typing import Any, Literal, NamedTuple, Optional
 
-try:
-    from pydantic.v1 import (
-        BaseModel,
-        Extra,
-        NonNegativeFloat,
-        NonNegativeInt,
-        PositiveInt,
-        confloat,
-        conint,
-        validator,
-    )
-except ImportError:
-    from pydantic import (
-        BaseModel,
-        Extra,
-        NonNegativeFloat,
-        NonNegativeInt,
-        PositiveInt,
-        confloat,
-        conint,
-        validator,
-    )
+from pydantic.v1 import (
+    BaseModel,
+    Extra,
+    NonNegativeFloat,
+    NonNegativeInt,
+    PositiveInt,
+    confloat,
+    conint,
+    validator,
+)
 
 
 @dataclass

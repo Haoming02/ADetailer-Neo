@@ -7,7 +7,7 @@ from collections.abc import Callable
 from importlib.metadata import version
 from typing import Any, TypeVar
 
-from adetailer.__version__ import __version__
+from adetailer import __version__
 from adetailer.args import ADetailerArgs
 from rich.console import Console, Group
 from rich.panel import Panel

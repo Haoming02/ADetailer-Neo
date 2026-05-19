@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from copy import copy
-from typing import TYPE_CHECKING, Any, Union
+from typing import Any
 from unittest.mock import patch
 
 import torch
@@ -11,21 +11,8 @@ from PIL import Image
 from typing_extensions import Protocol
 
 from modules import safe
+from modules.processing import StableDiffusionProcessing
 from modules.shared import cmd_opts, opts
-
-if TYPE_CHECKING:
-    # 타입 체커가 빨간 줄을 긋지 않게 하는 편법
-    from types import SimpleNamespace
-
-    StableDiffusionProcessingTxt2Img = SimpleNamespace
-    StableDiffusionProcessingImg2Img = SimpleNamespace
-else:
-    from modules.processing import (
-        StableDiffusionProcessingImg2Img,
-        StableDiffusionProcessingTxt2Img,
-    )
-
-PT = Union[StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img]
 
 
 @contextmanager
@@ -54,7 +41,7 @@ def pause_total_tqdm():
 
 
 @contextmanager
-def preserve_prompts(p: PT):
+def preserve_prompts(p: StableDiffusionProcessing):
     all_pt = copy(p.all_prompts)
     all_ng = copy(p.all_negative_prompts)
     try:

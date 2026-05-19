@@ -145,7 +145,7 @@ def adui(
 
             with gr.Column(scale=1, min_width=180):
                 gr.Markdown(
-                    f"v{__version__}",
+                    f"ver. {__version__}",
                     elem_id=eid("ad_version"),
                 )
 
