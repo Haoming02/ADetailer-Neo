@@ -7,14 +7,13 @@ from collections.abc import Callable
 from importlib.metadata import version
 from typing import Any, TypeVar
 
+from adetailer.__version__ import __version__
+from adetailer.args import ADetailerArgs
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.traceback import Traceback
 from typing_extensions import ParamSpec
-
-from adetailer.__version__ import __version__
-from adetailer.args import ADetailerArgs
 
 
 def processing(*args: Any) -> dict[str, Any]:

@@ -7,11 +7,11 @@ from types import SimpleNamespace
 from typing import Any
 
 import gradio as gr
-
-from aaaaaa.conditional import InputAccordion
 from adetailer import ADETAILER, __version__
 from adetailer.args import ALL_ARGS, MASK_MERGE_INVERT
 from controlnet_ext import controlnet_exists, controlnet_type, get_cn_models
+
+from aaaaaa.conditional import InputAccordion
 
 if controlnet_type == "forge":
     from lib_controlnet import global_state
@@ -379,7 +379,9 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
             )
 
 
-def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):  # noqa: PLR0915
+def inpainting(
+    w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo
+):  # noqa: PLR0915
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
     with gr.Group():
