@@ -50,9 +50,7 @@ from adetailer.mask import (
 )
 from adetailer.opts import dynamic_denoise_strength, optimal_crop_size
 from controlnet_ext import (
-    CNHijackRestore,
     ControlNetExt,
-    cn_allow_script_control,
     controlnet_exists,
     controlnet_type,
     get_cn_models,
@@ -897,7 +895,7 @@ class AfterDetailerScript(scripts.Script):
                 p.scripts.postprocess(copy(p), dummy)
 
         is_processed = False
-        with CNHijackRestore(), pause_total_tqdm(), cn_allow_script_control():
+        with pause_total_tqdm():
             for n, args in enumerate(arg_list):
                 if args.need_skip():
                     continue

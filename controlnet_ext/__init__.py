@@ -13,12 +13,9 @@ except ImportError:
         get_cn_models,
     )
 
-from .restore import CNHijackRestore, cn_allow_script_control
 
 __all__ = [
-    "CNHijackRestore",
     "ControlNetExt",
-    "cn_allow_script_control",
     "controlnet_exists",
     "controlnet_type",
     "get_cn_models",
