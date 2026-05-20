@@ -40,6 +40,7 @@ from adetailer.args import (
     SkipImg2ImgOrig,
 )
 from adetailer.common import PredictOutput, ensure_pil_image, safe_mkdir
+from adetailer.controlnet import ControlNetExt, get_cn_models
 from adetailer.mask import (
     filter_by_ratio,
     filter_k_by,
@@ -49,12 +50,6 @@ from adetailer.mask import (
     sort_bboxes,
 )
 from adetailer.opts import dynamic_denoise_strength, optimal_crop_size
-from controlnet_ext import (
-    ControlNetExt,
-    controlnet_exists,
-    controlnet_type,
-    get_cn_models,
-)
 from PIL import Image, ImageChops
 from rich import print
 
@@ -139,13 +134,11 @@ class AfterDetailerScript(scripts.Script):
     def init_controlnet_ext(self) -> None:
         if self.controlnet_ext is not None:
             return
-        self.controlnet_ext = ControlNetExt()
-
-        if controlnet_exists:
-            try:
-                self.controlnet_ext.init_controlnet()
-            except Exception as e:
-                errors.display(e, "init_controlnet")
+        try:
+            self.controlnet_ext = ControlNetExt()
+            self.controlnet_ext.init_controlnet()
+        except Exception as e:
+            errors.display(e, "init_controlnet")
 
     def update_controlnet_args(self, p, args: ADetailerArgs) -> None:
         if self.controlnet_ext is None:
@@ -541,9 +534,6 @@ class AfterDetailerScript(scripts.Script):
         i2i.scripts, i2i.script_args = self.script_filter(p, args)
         i2i._ad_disabled = True
         i2i._ad_inner = True
-
-        if args.ad_controlnet_model != "Passthrough" and controlnet_type != "forge":
-            i2i.script_args = self.disable_controlnet_units(i2i.script_args)
 
         if args.ad_controlnet_model not in ["None", "Passthrough"]:
             self.update_controlnet_args(i2i, args)

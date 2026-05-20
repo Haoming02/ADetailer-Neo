@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from functools import partial
 from itertools import chain
@@ -9,42 +7,22 @@ from typing import Any
 import gradio as gr
 from adetailer import ADETAILER, __version__
 from adetailer.args import ALL_ARGS, MASK_MERGE_INVERT
-from controlnet_ext import controlnet_exists, controlnet_type, get_cn_models
+from adetailer.controlnet import get_cn_models
+from lib_controlnet import global_state
 
 from modules.ui_components import InputAccordion
 
-if controlnet_type == "forge":
-    from lib_controlnet import global_state
+cn_module_choices = {
+    "inpaint": list(global_state.get_filtered_preprocessors("Inpaint")),
+    "lineart": list(global_state.get_filtered_preprocessors("Lineart")),
+    "openpose": list(global_state.get_filtered_preprocessors("OpenPose")),
+    "tile": list(global_state.get_filtered_preprocessors("Tile")),
+    "scribble": list(global_state.get_filtered_preprocessors("Scribble")),
+    "depth": list(global_state.get_filtered_preprocessors("Depth")),
+}
 
-    cn_module_choices = {
-        "inpaint": list(global_state.get_filtered_preprocessors("Inpaint")),
-        "lineart": list(global_state.get_filtered_preprocessors("Lineart")),
-        "openpose": list(global_state.get_filtered_preprocessors("OpenPose")),
-        "tile": list(global_state.get_filtered_preprocessors("Tile")),
-        "scribble": list(global_state.get_filtered_preprocessors("Scribble")),
-        "depth": list(global_state.get_filtered_preprocessors("Depth")),
-    }
-else:
-    cn_module_choices = {
-        "inpaint": [
-            "inpaint_global_harmonious",
-            "inpaint_only",
-            "inpaint_only+lama",
-        ],
-        "lineart": [
-            "lineart_coarse",
-            "lineart_realistic",
-            "lineart_anime",
-            "lineart_anime_denoise",
-        ],
-        "openpose": ["openpose_full", "dw_openpose_full"],
-        "tile": ["tile_resample", "tile_colorfix", "tile_colorfix+sharp"],
-        "scribble": ["t2ia_sketch_pidi"],
-        "depth": ["depth_midas", "depth_hand_refiner"],
-    }
-
-union = list(chain.from_iterable(cn_module_choices.values()))
-cn_module_choices["union"] = union
+_union = set(chain.from_iterable(cn_module_choices.values()))
+cn_module_choices["union"] = sorted(_union)
 
 
 class Widgets(SimpleNamespace):
@@ -664,7 +642,7 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
                 value="None",
                 visible=True,
                 type="value",
-                interactive=controlnet_exists,
+                interactive=True,
                 elem_id=eid("ad_controlnet_model"),
             )
 
@@ -674,7 +652,7 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
                 value="None",
                 visible=False,
                 type="value",
-                interactive=controlnet_exists,
+                interactive=True,
                 elem_id=eid("ad_controlnet_module"),
             )
 
@@ -685,7 +663,7 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
                 step=0.01,
                 value=1.0,
                 visible=True,
-                interactive=controlnet_exists,
+                interactive=True,
                 elem_id=eid("ad_controlnet_weight"),
             )
 
@@ -704,7 +682,7 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
                 step=0.01,
                 value=0.0,
                 visible=True,
-                interactive=controlnet_exists,
+                interactive=True,
                 elem_id=eid("ad_controlnet_guidance_start"),
             )
 
@@ -715,6 +693,6 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
                 step=0.01,
                 value=1.0,
                 visible=True,
-                interactive=controlnet_exists,
+                interactive=True,
                 elem_id=eid("ad_controlnet_guidance_end"),
             )

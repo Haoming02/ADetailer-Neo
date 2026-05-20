@@ -1,21 +1,17 @@
-from __future__ import annotations
-
 import copy
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.processing import StableDiffusionProcessing
 
 import numpy as np
 from lib_controlnet import external_code, global_state
 from lib_controlnet.external_code import ControlNetUnit
 
 from modules import scripts
-from modules.processing import StableDiffusionProcessing
-
-from .common import cn_model_regex
-
-controlnet_exists = True
-controlnet_type = "forge"
 
 
-def find_script(p: StableDiffusionProcessing, script_title: str) -> scripts.Script:
+def find_script(p: "StableDiffusionProcessing", script_title: str) -> scripts.Script:
     script = next((s for s in p.scripts.scripts if s.title() == script_title), None)
     if not script:
         msg = f"Script not found: {script_title!r}"
@@ -24,7 +20,7 @@ def find_script(p: StableDiffusionProcessing, script_title: str) -> scripts.Scri
 
 
 def add_forge_script_to_adetailer_run(
-    p: StableDiffusionProcessing, script_title: str, script_args: list
+    p: "StableDiffusionProcessing", script_title: str, script_args: list
 ):
     p.scripts = copy.copy(scripts.scripts_img2img)
     p.scripts.alwayson_scripts = []
@@ -88,5 +84,9 @@ class ControlNetExt:
 
 
 def get_cn_models() -> list[str]:
-    models = global_state.get_all_controlnet_names()
-    return [m for m in models if cn_model_regex.search(m)]
+    models: list[str] = []
+    for mod in ("Inpaint", "Scribble", "Lineart", "OpenPose", "Tile", "Depth"):
+        models.extend(global_state.get_filtered_controlnet_names(mod))
+    models: list[str] = sorted(set(models))
+    models.remove("None")
+    return models
