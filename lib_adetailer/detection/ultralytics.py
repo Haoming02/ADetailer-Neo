@@ -7,8 +7,7 @@ import cv2
 from PIL import Image
 from torchvision.transforms.functional import to_pil_image
 
-from . import PredictOutput
-from .common import create_mask_from_bbox
+from .common import PredictOutput, create_mask_from_bbox
 
 if TYPE_CHECKING:
     import torch

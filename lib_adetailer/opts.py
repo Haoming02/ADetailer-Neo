@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar, TypeVar
+from typing import ClassVar
 
 import numpy as np
 
-T = TypeVar("T", int, float)
+from .utils import NUM
 
 
 def dynamic_denoise_strength(
     denoise_power: float,
     denoise_strength: float,
-    bbox: Sequence[T],
+    bbox: Sequence[NUM],
     image_size: tuple[int, int],
 ) -> float:
     if len(bbox) != 4:
@@ -46,7 +46,7 @@ class _OptimalCropSize:
     ]
 
     def sdxl(
-        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[T]
+        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[NUM]
     ) -> tuple[int, int]:
         if len(bbox) != 4:
             msg = f"bbox length must be 4, got {len(bbox)}"
@@ -72,7 +72,7 @@ class _OptimalCropSize:
         )
 
     def free(
-        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[T]
+        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[NUM]
     ) -> tuple[int, int]:
         if len(bbox) != 4:
             msg = f"bbox length must be 4, got {len(bbox)}"

@@ -1,16 +1,15 @@
-from __future__ import annotations
-
-import platform
+import os
 import re
 from collections.abc import Sequence
 from copy import copy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import Any, NamedTuple
 
 import gradio as gr
+from fastapi import FastAPI
 from lib_adetailer import (
-    ADETAILER,
+    PredictOutput,
     __version__,
     get_models,
     mediapipe_predict,
@@ -25,13 +24,7 @@ from lib_adetailer.args import (
     InpaintBBoxMatchMode,
     SkipImg2ImgOrig,
 )
-from lib_adetailer.common import PredictOutput, ensure_pil_image, safe_mkdir
 from lib_adetailer.controlnet import ControlNetExt, get_cn_models
-from lib_adetailer.helper import (
-    copy_extra_params,
-    pause_total_tqdm,
-    preserve_prompts,
-)
 from lib_adetailer.mask import (
     filter_by_ratio,
     filter_k_by,
@@ -41,7 +34,14 @@ from lib_adetailer.mask import (
     sort_bboxes,
 )
 from lib_adetailer.opts import dynamic_denoise_strength, optimal_crop_size
-from lib_adetailer.p_method import (
+from lib_adetailer.ui import WebuiInfo, adui, ordinal, suffix
+from lib_adetailer.utils import ensure_pil_image, print
+from lib_adetailer.utils.helper import (
+    copy_extra_params,
+    pause_total_tqdm,
+    preserve_prompts,
+)
+from lib_adetailer.utils.p_method import (
     get_i,
     is_img2img_inpaint,
     is_inpaint_only_masked,
@@ -49,11 +49,8 @@ from lib_adetailer.p_method import (
     need_call_postprocess,
     need_call_process,
 )
-from lib_adetailer.ui import WebuiInfo, adui, ordinal, suffix
 from PIL import Image, ImageChops
-from rich import print
 
-import modules
 from modules import errors, images, paths, script_callbacks, scripts, shared
 from modules.processing import (
     Processed,
@@ -62,39 +59,30 @@ from modules.processing import (
     create_infotext,
     process_images,
 )
+from modules.sd_models import checkpoint_tiles
 from modules.sd_samplers import all_samplers
 from modules.sd_schedulers import schedulers
-from modules.shared import cmd_opts, opts, state
-
-if TYPE_CHECKING:
-    from fastapi import FastAPI
+from modules.shared import opts, state
+from modules_forge.main_entry import module_list
 
 PARAMS_TXT = "params.txt"
 
-no_huggingface = getattr(cmd_opts, "ad_no_huggingface", False)
 adetailer_dir = Path(paths.models_path, "adetailer")
-safe_mkdir(adetailer_dir)
+os.makedirs(adetailer_dir, exist_ok=True)
 
-extra_models_dirs = shared.opts.data.get("ad_extra_models_dir", "")
-model_mapping = get_models(
-    adetailer_dir,
-    *extra_models_dirs.split("|"),
-    huggingface=not no_huggingface,
-)
+extra_models_dirs: str = shared.opts.data.get("ad_extra_models_dir", "")
+model_mapping = get_models(adetailer_dir, *extra_models_dirs.split("|"))
 
-txt2img_submit_button = img2img_submit_button = None
-txt2img_submit_button = cast(gr.Button, txt2img_submit_button)
-img2img_submit_button = cast(gr.Button, img2img_submit_button)
+print(f"Initialized - Version: {__version__} ; {len(model_mapping)} Models")
 
-print(
-    f"[-] ADetailer initialized. version: {__version__}, num models: {len(model_mapping)}"
-)
+txt2img_submit_button: gr.Button = None
+img2img_submit_button: gr.Button = None
 
 
 class AfterDetailerScript(scripts.Script):
     def __init__(self):
         super().__init__()
-        self.ultralytics_device = self.get_ultralytics_device()
+        self.ultralytics_device = ""  # TODO
 
         self.controlnet_ext = None
 
@@ -102,7 +90,7 @@ class AfterDetailerScript(scripts.Script):
         return f"{self.__class__.__name__}(version={__version__})"
 
     def title(self):
-        return ADETAILER
+        return "ADetailer"
 
     def show(self, is_img2img):
         return scripts.AlwaysVisible
@@ -113,8 +101,7 @@ class AfterDetailerScript(scripts.Script):
         sampler_names = [sampler.name for sampler in all_samplers]
         scheduler_names = [x.label for x in schedulers]
 
-        checkpoint_list = modules.sd_models.checkpoint_tiles(use_short=True)
-        vae_list = modules.shared_items.sd_vae_items()
+        checkpoint_list = checkpoint_tiles(use_short=True)
 
         webui_info = WebuiInfo(
             ad_model_list=ad_model_list,
@@ -123,7 +110,7 @@ class AfterDetailerScript(scripts.Script):
             t2i_button=txt2img_submit_button,
             i2i_button=img2img_submit_button,
             checkpoints_list=checkpoint_list,
-            vae_list=vae_list,
+            vae_list=module_list.keys(),
         )
 
         components, infotext_fields = adui(num_models, is_img2img, webui_info)
@@ -195,8 +182,7 @@ class AfterDetailerScript(scripts.Script):
 
         if is_img2img_inpaint(p):
             p._ad_disabled = True
-            msg = "[-] ADetailer: img2img inpainting with skip img2img is not supported. (because it's buggy)"
-            print(msg)
+            print('"Skip img2img" does not support Inpainting')
             return
 
         p._ad_orig = SkipImg2ImgOrig(
@@ -214,7 +200,7 @@ class AfterDetailerScript(scripts.Script):
         args = [arg for arg in args_ if isinstance(arg, dict)]
 
         if not args:
-            message = f"[-] ADetailer: Invalid arguments passed to ADetailer: {args_!r}"
+            message = f"[ADetailer]: Invalid arguments passed ({args_!r})"
             raise ValueError(message)
 
         if hasattr(p, "_ad_xyz"):
@@ -232,7 +218,7 @@ class AfterDetailerScript(scripts.Script):
             all_inputs.append(inp)
 
         if not all_inputs:
-            msg = "[-] ADetailer: No valid arguments found."
+            msg = "[ADetailer]: No valid arguments found..."
             raise ValueError(msg)
         return all_inputs
 
@@ -242,20 +228,6 @@ class AfterDetailerScript(scripts.Script):
             params.update(args.extra_params(suffix=suffix(n)))
         params["ADetailer version"] = __version__
         return params
-
-    @staticmethod
-    def get_ultralytics_device() -> str:
-        if "adetailer" in shared.cmd_opts.use_cpu:
-            return "cpu"
-
-        if platform.system() == "Darwin":
-            return ""
-
-        vram_args = ["lowvram", "medvram", "medvram_sdxl"]
-        if any(getattr(cmd_opts, vram, False) for vram in vram_args):
-            return "cpu"
-
-        return ""
 
     def prompt_blank_replacement(
         self, all_prompts: list[str], i: int, default: str
@@ -273,7 +245,7 @@ class AfterDetailerScript(scripts.Script):
         all_prompts: list[str],
         i: int,
         default: str,
-        replacements: list[PromptSR],
+        replacements: list["PromptSR"],
     ) -> list[str]:
         prompts = re.split(r"\s*\[SEP\]\s*", ad_prompt)
         blank_replacement = self.prompt_blank_replacement(all_prompts, i, default)
@@ -505,7 +477,7 @@ class AfterDetailerScript(scripts.Script):
             sd_model=p.sd_model,
             outpath_samples=p.outpath_samples,
             outpath_grids=p.outpath_grids,
-            prompt="",  # replace later
+            prompt="",
             negative_prompt="",
             styles=p.styles,
             seed=seed,
@@ -573,7 +545,7 @@ class AfterDetailerScript(scripts.Script):
 
     def get_ad_model(self, name: str):
         if name not in model_mapping:
-            msg = f"[-] ADetailer: Model {name!r} not found. Available models: {list(model_mapping.keys())}"
+            msg = f"[ADetailer]: Model {name!r} not found... Available models: {list(model_mapping.keys())}"
             raise ValueError(msg)
         return model_mapping[name]
 
@@ -616,15 +588,11 @@ class AfterDetailerScript(scripts.Script):
     def compare_prompt(extra_params: dict[str, Any], processed, n: int = 0):
         pt = "ADetailer prompt" + suffix(n)
         if pt in extra_params and extra_params[pt] != processed.all_prompts[0]:
-            print(
-                f"[-] ADetailer: applied {ordinal(n + 1)} ad_prompt: {processed.all_prompts[0]!r}"
-            )
+            print(f'Applied {ordinal(n + 1)} - "{processed.all_prompts[0]}"')
 
         ng = "ADetailer negative prompt" + suffix(n)
         if ng in extra_params and extra_params[ng] != processed.all_negative_prompts[0]:
-            print(
-                f"[-] ADetailer: applied {ordinal(n + 1)} ad_negative_prompt: {processed.all_negative_prompts[0]!r}"
-            )
+            print(f'Applied {ordinal(n + 1)} - "{processed.all_negative_prompts[0]}"')
 
     @staticmethod
     def get_i2i_init_image(p, pp: scripts.PostprocessImageArgs):
@@ -673,9 +641,7 @@ class AfterDetailerScript(scripts.Script):
             image_size=image_size,
         )
 
-        print(
-            f"[-] ADetailer: dynamic denoising -- {denoise_strength:.2f} -> {modified_strength:.2f}"
-        )
+        print(f"Dynamic Denoising: {denoise_strength:.2f} -> {modified_strength:.2f}")
 
         return modified_strength
 
@@ -696,8 +662,7 @@ class AfterDetailerScript(scripts.Script):
         # Strict (SDXL only)
         if calculate_optimal_crop == InpaintBBoxMatchMode.STRICT.value:
             if not shared.sd_model.is_sdxl:
-                msg = "[-] ADetailer: strict inpaint bounding box size matching is only available for SDXL. Use Free mode instead."
-                print(msg)
+                print("Strict matching is only available for SDXL...")
                 return (inpaint_width, inpaint_height)
 
             optimal_resolution = optimal_crop_size.sdxl(
@@ -711,8 +676,7 @@ class AfterDetailerScript(scripts.Script):
             )
 
         if optimal_resolution is None:
-            msg = "[-] ADetailer: unsupported inpaint bounding box match mode. Original inpainting dimensions will be used."
-            print(msg)
+            print("Using original inpainting dimensions...")
             return (inpaint_width, inpaint_height)
 
         # Only use optimal dimensions if they're different enough to current inpaint dimensions.
@@ -721,7 +685,7 @@ class AfterDetailerScript(scripts.Script):
             or abs(optimal_resolution[1] - inpaint_height) > inpaint_height * 0.1
         ):
             print(
-                f"[-] ADetailer: inpaint dimensions optimized -- {inpaint_width}x{inpaint_height} -> {optimal_resolution[0]}x{optimal_resolution[1]}"
+                f"Inpaint Dimensions: {inpaint_width}x{inpaint_height} -> {optimal_resolution[0]}x{optimal_resolution[1]}"
             )
 
         return optimal_resolution
@@ -757,10 +721,7 @@ class AfterDetailerScript(scripts.Script):
 
         if is_img2img_inpaint(p) and is_all_black(self.get_image_mask(p)):
             p._ad_disabled = True
-            msg = (
-                "[-] ADetailer: img2img inpainting with no mask -- adetailer disabled."
-            )
-            print(msg)
+            print("Inpainting with no Mask - ADetailer Disabled...")
             return
 
         if not self.is_ad_enabled(*args_):
@@ -818,9 +779,7 @@ class AfterDetailerScript(scripts.Script):
             )
 
         if pred.preview is None:
-            print(
-                f"[-] ADetailer: nothing detected on image {i + 1} with {ordinal(n + 1)} settings."
-            )
+            print(f"Nothing detected on image {i + 1} with {ordinal(n + 1)} settings")
             return False
 
         masks = self.pred_preprocessing(p, pred, args)
@@ -838,7 +797,7 @@ class AfterDetailerScript(scripts.Script):
         state.job_count += steps
 
         if is_mediapipe:
-            print(f"mediapipe: {steps} detected.")
+            print(f"MediaPipe: {steps} Detected")
 
         p2 = copy(i2i)
         for j in range(steps):
@@ -916,7 +875,7 @@ def on_after_component(component, **_kwargs):
 
 
 def on_ui_settings():
-    section = ("ADetailer", ADETAILER)
+    section = ("ADetailer", "ADetailer")
     shared.opts.add_option(
         "ad_max_models",
         shared.OptionInfo(
@@ -1034,7 +993,7 @@ def on_ui_settings():
     )
 
 
-# xyz_grid
+# region X/Y/Z Grid
 
 
 class PromptSR(NamedTuple):
@@ -1161,10 +1120,10 @@ def on_before_ui():
         errors.display(e, "xyz_grid")
 
 
-# api
+# region API
 
 
-def add_api_endpoints(_: gr.Blocks, app: FastAPI):
+def add_api_endpoints(_: gr.Blocks, app: "FastAPI"):
     @app.get("/adetailer/v1/version")
     async def version():
         return {"version": __version__}

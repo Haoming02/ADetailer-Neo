@@ -9,7 +9,7 @@ from lib_controlnet import global_state
 
 from modules.ui_components import InputAccordion
 
-from . import ADETAILER, __version__
+from . import __version__
 from .args import ALL_ARGS, MASK_MERGE_INVERT
 from .controlnet import get_cn_models
 
@@ -110,7 +110,7 @@ def adui(
     with InputAccordion(
         value=False,
         elem_id=eid("ad_main_accordion"),
-        label=ADETAILER,
+        label="ADetailer",
         visible=True,
     ) as ad_enable:
         with gr.Row():
