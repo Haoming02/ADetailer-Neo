@@ -5,11 +5,11 @@ from types import SimpleNamespace
 from typing import Any
 
 import gradio as gr
+from lib_controlnet import global_state
+
 from adetailer import ADETAILER, __version__
 from adetailer.args import ALL_ARGS, MASK_MERGE_INVERT
 from adetailer.controlnet import get_cn_models
-from lib_controlnet import global_state
-
 from modules.ui_components import InputAccordion
 
 cn_module_choices = {

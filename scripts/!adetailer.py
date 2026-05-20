@@ -9,20 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import gradio as gr
-from aaaaaa.helper import (
-    copy_extra_params,
-    pause_total_tqdm,
-    preserve_prompts,
-)
-from aaaaaa.p_method import (
-    get_i,
-    is_img2img_inpaint,
-    is_inpaint_only_masked,
-    is_skip_img2img,
-    need_call_postprocess,
-    need_call_process,
-)
-from aaaaaa.ui import WebuiInfo, adui, ordinal, suffix
 from adetailer import (
     ADETAILER,
     __version__,
@@ -41,6 +27,11 @@ from adetailer.args import (
 )
 from adetailer.common import PredictOutput, ensure_pil_image, safe_mkdir
 from adetailer.controlnet import ControlNetExt, get_cn_models
+from adetailer.helper import (
+    copy_extra_params,
+    pause_total_tqdm,
+    preserve_prompts,
+)
 from adetailer.mask import (
     filter_by_ratio,
     filter_k_by,
@@ -50,6 +41,15 @@ from adetailer.mask import (
     sort_bboxes,
 )
 from adetailer.opts import dynamic_denoise_strength, optimal_crop_size
+from adetailer.p_method import (
+    get_i,
+    is_img2img_inpaint,
+    is_inpaint_only_masked,
+    is_skip_img2img,
+    need_call_postprocess,
+    need_call_process,
+)
+from adetailer.ui import WebuiInfo, adui, ordinal, suffix
 from PIL import Image, ImageChops
 from rich import print
 
