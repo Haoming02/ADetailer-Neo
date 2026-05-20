@@ -9,8 +9,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageChops
 
-from adetailer.args import MASK_MERGE_INVERT
-from adetailer.common import PredictOutput, ensure_pil_image
+from .args import MASK_MERGE_INVERT
+from .common import PredictOutput, ensure_pil_image
 
 
 class SortBy(IntEnum):

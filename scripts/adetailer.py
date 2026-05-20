@@ -9,14 +9,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import gradio as gr
-from adetailer import (
+from lib_adetailer import (
     ADETAILER,
     __version__,
     get_models,
     mediapipe_predict,
     ultralytics_predict,
 )
-from adetailer.args import (
+from lib_adetailer.args import (
     BBOX_SORTBY,
     BUILTIN_SCRIPT,
     INPAINT_BBOX_MATCH_MODES,
@@ -25,14 +25,14 @@ from adetailer.args import (
     InpaintBBoxMatchMode,
     SkipImg2ImgOrig,
 )
-from adetailer.common import PredictOutput, ensure_pil_image, safe_mkdir
-from adetailer.controlnet import ControlNetExt, get_cn_models
-from adetailer.helper import (
+from lib_adetailer.common import PredictOutput, ensure_pil_image, safe_mkdir
+from lib_adetailer.controlnet import ControlNetExt, get_cn_models
+from lib_adetailer.helper import (
     copy_extra_params,
     pause_total_tqdm,
     preserve_prompts,
 )
-from adetailer.mask import (
+from lib_adetailer.mask import (
     filter_by_ratio,
     filter_k_by,
     has_intersection,
@@ -40,8 +40,8 @@ from adetailer.mask import (
     mask_preprocess,
     sort_bboxes,
 )
-from adetailer.opts import dynamic_denoise_strength, optimal_crop_size
-from adetailer.p_method import (
+from lib_adetailer.opts import dynamic_denoise_strength, optimal_crop_size
+from lib_adetailer.p_method import (
     get_i,
     is_img2img_inpaint,
     is_inpaint_only_masked,
@@ -49,7 +49,7 @@ from adetailer.p_method import (
     need_call_postprocess,
     need_call_process,
 )
-from adetailer.ui import WebuiInfo, adui, ordinal, suffix
+from lib_adetailer.ui import WebuiInfo, adui, ordinal, suffix
 from PIL import Image, ImageChops
 from rich import print
 

@@ -7,10 +7,11 @@ from typing import Any
 import gradio as gr
 from lib_controlnet import global_state
 
-from adetailer import ADETAILER, __version__
-from adetailer.args import ALL_ARGS, MASK_MERGE_INVERT
-from adetailer.controlnet import get_cn_models
 from modules.ui_components import InputAccordion
+
+from . import ADETAILER, __version__
+from .args import ALL_ARGS, MASK_MERGE_INVERT
+from .controlnet import get_cn_models
 
 cn_module_choices = {
     "inpaint": list(global_state.get_filtered_preprocessors("Inpaint")),
