@@ -26,12 +26,12 @@ def is_inpaint_only_masked(p: "StableDiffusionProcessing") -> bool:
     return getattr(p, "inpaint_full_res", False)
 
 
+def is_skip_img2img(p: "StableDiffusionProcessing") -> bool:
+    return getattr(p, "_ad_skip_img2img", False)
+
+
 def get_i(p: "StableDiffusionProcessing") -> int:
     it: int = p.iteration
     bs: int = p.batch_size
     i: int = p.batch_index
     return it * bs + i
-
-
-def is_skip_img2img(p: "StableDiffusionProcessing") -> bool:
-    return getattr(p, "_ad_skip_img2img", False)

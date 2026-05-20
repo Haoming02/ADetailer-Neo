@@ -86,7 +86,7 @@ def on_widget_change(state: dict, value: Any, *, attr: str):
 
 def on_generate_click(state: dict, *values: Any):
     for attr, value in zip(ALL_ARGS.attrs, values):
-        state[attr] = value  # noqa: PERF403
+        state[attr] = value
     state["is_api"] = ()
     return state
 
@@ -379,9 +379,7 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
             )
 
 
-def inpainting(
-    w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo
-):  # noqa: PLR0915
+def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
     with gr.Group():

@@ -45,7 +45,7 @@ class ControlNetExt:
     def init_controlnet(self):
         self.cn_available = True
 
-    def update_scripts_args(  # noqa: PLR0913
+    def update_scripts_args(
         self,
         p,
         model: str,

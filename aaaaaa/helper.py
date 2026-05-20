@@ -1,11 +1,11 @@
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
-from PIL import Image
-from typing_extensions import Protocol
+if TYPE_CHECKING:
+    from modules.processing import StableDiffusionProcessing
 
-from modules.processing import StableDiffusionProcessing
+
 from modules.shared import opts
 
 
@@ -16,21 +16,17 @@ def pause_total_tqdm():
 
 
 @contextmanager
-def preserve_prompts(p: StableDiffusionProcessing):
+def preserve_prompts(p: "StableDiffusionProcessing"):
     try:
         all_pt = p.all_prompts.copy()
-        all_ng = p.all_negative_prompts.copy()
+        all_np = p.all_negative_prompts.copy()
 
         yield
 
     finally:
         p.all_prompts = all_pt
-        p.all_negative_prompts = all_ng
+        p.all_negative_prompts = all_np
 
 
 def copy_extra_params(extra_params: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in extra_params.items() if not callable(v)}
-
-
-class PPImage(Protocol):
-    image: Image.Image

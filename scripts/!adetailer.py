@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import gradio as gr
 from aaaaaa.helper import (
-    PPImage,
     copy_extra_params,
     pause_total_tqdm,
     preserve_prompts,
@@ -640,7 +639,7 @@ class AfterDetailerScript(scripts.Script):
             )
 
     @staticmethod
-    def get_i2i_init_image(p, pp: PPImage):
+    def get_i2i_init_image(p, pp: scripts.PostprocessImageArgs):
         if is_skip_img2img(p):
             return p.init_images[0]
         return pp.image
@@ -739,8 +738,14 @@ class AfterDetailerScript(scripts.Script):
 
         return optimal_resolution
 
-    def fix_p2(  # noqa: PLR0913
-        self, p, p2, pp: PPImage, args: ADetailerArgs, pred: PredictOutput, j: int
+    def fix_p2(
+        self,
+        p,
+        p2,
+        pp: scripts.PostprocessImageArgs,
+        args: ADetailerArgs,
+        pred: PredictOutput,
+        j: int,
     ):
         seed, subseed = self.get_seed(p)
         p2.seed = self.get_each_tab_seed(seed, j)
@@ -792,7 +797,7 @@ class AfterDetailerScript(scripts.Script):
         p.extra_generation_params.update(extra_params)
 
     def _postprocess_image_inner(
-        self, p, pp: PPImage, args: ADetailerArgs, *, n: int = 0
+        self, p, pp: scripts.PostprocessImageArgs, args: ADetailerArgs, *, n: int = 0
     ) -> bool:
         """
         Returns
@@ -876,7 +881,7 @@ class AfterDetailerScript(scripts.Script):
 
         return False
 
-    def postprocess_image(self, p, pp: PPImage, *args_):
+    def postprocess_image(self, p, pp: scripts.PostprocessImageArgs, *args_):
         if getattr(p, "_ad_disabled", False) or not self.is_ad_enabled(*args_):
             return
 
