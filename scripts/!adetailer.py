@@ -222,7 +222,7 @@ class AfterDetailerScript(scripts.Script):
 
         all_inputs: list[ADetailerArgs] = []
 
-        for n, arg_dict in enumerate(args, 1):
+        for _, arg_dict in enumerate(args, 1):
             try:
                 inp = ADetailerArgs(**arg_dict)
             except ValueError as e:
@@ -1171,9 +1171,7 @@ def add_api_endpoints(_: gr.Blocks, app: FastAPI):
 
     @app.get("/adetailer/v1/schema")
     async def schema():
-        if hasattr(ADetailerArgs, "model_json_schema"):
-            return ADetailerArgs.model_json_schema()
-        return ADetailerArgs.schema()
+        return ADetailerArgs.model_json_schema()
 
     @app.get("/adetailer/v1/ad_model")
     async def ad_model():

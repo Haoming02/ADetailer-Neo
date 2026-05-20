@@ -6,15 +6,14 @@ from enum import Enum
 from functools import cached_property, partial
 from typing import Any, Literal, NamedTuple, Optional
 
-from pydantic.v1 import (
+from pydantic import (
     BaseModel,
-    Extra,
+    ConfigDict,
+    Field,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
-    confloat,
-    conint,
-    validator,
+    field_validator,
 )
 
 
@@ -41,23 +40,25 @@ class ArgsList(UserList):
         return tuple(name for _, name in self)
 
 
-class ADetailerArgs(BaseModel, extra=Extra.forbid):
+class ADetailerArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     ad_model: str = "None"
     ad_model_classes: str = ""
     ad_tab_enable: bool = True
     ad_prompt: str = ""
     ad_negative_prompt: str = ""
-    ad_confidence: confloat(ge=0.0, le=1.0) = 0.3
+    ad_confidence: float = Field(default=0.3, ge=0.0, le=1.0)
     ad_mask_filter_method: Literal["Area", "Confidence"] = "Area"
     ad_mask_k: NonNegativeInt = 0
-    ad_mask_min_ratio: confloat(ge=0.0, le=1.0) = 0.0
-    ad_mask_max_ratio: confloat(ge=0.0, le=1.0) = 1.0
+    ad_mask_min_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+    ad_mask_max_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
     ad_dilate_erode: int = 4
     ad_x_offset: int = 0
     ad_y_offset: int = 0
     ad_mask_merge_invert: Literal["None", "Merge", "Merge and Invert"] = "None"
     ad_mask_blur: NonNegativeInt = 4
-    ad_denoising_strength: confloat(ge=0.0, le=1.0) = 0.4
+    ad_denoising_strength: float = Field(default=0.4, ge=0.0, le=1.0)
     ad_inpaint_only_masked: bool = True
     ad_inpaint_only_masked_padding: NonNegativeInt = 32
     ad_use_inpaint_width_height: bool = False
@@ -75,19 +76,20 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
     ad_sampler: str = "DPM++ 2M Karras"
     ad_scheduler: str = "Use same scheduler"
     ad_use_noise_multiplier: bool = False
-    ad_noise_multiplier: confloat(ge=0.5, le=1.5) = 1.0
+    ad_noise_multiplier: float = Field(default=1.0, ge=0.5, le=1.5)
     ad_use_clip_skip: bool = False
-    ad_clip_skip: conint(ge=1, le=12) = 1
+    ad_clip_skip: int = Field(default=1, ge=1, le=12)
     ad_restore_face: bool = False
     ad_controlnet_model: str = "None"
     ad_controlnet_module: str = "None"
-    ad_controlnet_weight: confloat(ge=0.0, le=1.0) = 1.0
-    ad_controlnet_guidance_start: confloat(ge=0.0, le=1.0) = 0.0
-    ad_controlnet_guidance_end: confloat(ge=0.0, le=1.0) = 1.0
+    ad_controlnet_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    ad_controlnet_guidance_start: float = Field(default=0.0, ge=0.0, le=1.0)
+    ad_controlnet_guidance_end: float = Field(default=1.0, ge=0.0, le=1.0)
     is_api: bool = True
 
-    @validator("is_api", pre=True)
-    def is_api_validator(cls, v: Any):  # noqa: N805
+    @field_validator("is_api", mode="before")
+    @classmethod
+    def is_api_validator(cls, v: Any):
         "tuple is json serializable but cannot be made with json deserialize."
         return type(v) is not tuple
 
