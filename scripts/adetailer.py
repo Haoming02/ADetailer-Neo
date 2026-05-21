@@ -342,9 +342,6 @@ class AfterDetailerScript(scripts.Script):
     def get_override_settings(self, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
 
-        if args.ad_use_clip_skip:  # TODO
-            d["CLIP_stop_at_last_layers"] = args.ad_clip_skip
-
         if (
             args.ad_use_checkpoint
             and args.ad_checkpoint

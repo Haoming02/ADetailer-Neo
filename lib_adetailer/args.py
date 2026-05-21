@@ -77,8 +77,6 @@ class ADetailerArgs(BaseModel):
     ad_scheduler: str = "Use same scheduler"
     ad_use_noise_multiplier: bool = False
     ad_noise_multiplier: float = Field(default=1.0, ge=0.5, le=1.5)
-    ad_use_clip_skip: bool = False
-    ad_clip_skip: int = Field(default=1, ge=1, le=12)
     ad_restore_face: bool = False
     ad_controlnet_model: str = "None"
     ad_controlnet_module: str = "None"
@@ -240,8 +238,6 @@ _all_args = [
     ("ad_scheduler", "ADetailer scheduler"),
     ("ad_use_noise_multiplier", "ADetailer use separate noise multiplier"),
     ("ad_noise_multiplier", "ADetailer noise multiplier"),
-    ("ad_use_clip_skip", "ADetailer use separate CLIP skip"),
-    ("ad_clip_skip", "ADetailer CLIP skip"),
     ("ad_restore_face", "ADetailer restore face"),
     ("ad_controlnet_model", "ADetailer ControlNet model"),
     ("ad_controlnet_module", "ADetailer ControlNet module"),
