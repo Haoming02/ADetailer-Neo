@@ -1,102 +1,86 @@
 import os
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import suppress
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Generic, Optional
+from typing import Final, Optional, TypeVar
 
-from huggingface_hub import hf_hub_download
 from PIL import Image, ImageDraw
+from torch.hub import download_url_to_file
 
 from modules.shared import cmd_opts
 
 from ..utils import NUM, print
 
+URL = TypeVar("URL", bound=str)
+
 no_huggingface: bool = getattr(cmd_opts, "ad_no_huggingface", False)
 
 
 @dataclass
-class PredictOutput(Generic[NUM]):
-    bboxes: list[list[NUM]] = field(default_factory=list)
+class PredictOutput:
+    bboxes: list[tuple[NUM]] = field(default_factory=tuple)
     masks: list[Image.Image] = field(default_factory=list)
     confidences: list[float] = field(default_factory=list)
     preview: Optional[Image.Image] = None
 
 
 def _scan_models(path: Path) -> list[Path]:
-    return [p for p in path.rglob("*") if p.is_file() and p.suffix == ".pt"]
+    return [
+        obj
+        for obj in path.rglob("*")
+        if (obj.is_file() and obj.suffix in (".pt", ".tflite", ".task"))
+    ]
 
 
-def _hf_download(file: str, repo_id: str, remote: bool = True) -> os.PathLike:
-    if remote:
-        with suppress(Exception):
-            return hf_hub_download(repo_id, file)
-        with suppress(Exception):
-            return hf_hub_download(repo_id, file, endpoint="https://hf-mirror.com")
+def _download(folder: os.PathLike, names: dict[str, URL]):
 
-    with suppress(Exception):
-        return hf_hub_download(repo_id, file, local_files_only=True)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures: list[Future] = [
+            executor.submit(
+                download_url_to_file,
+                url=url,
+                dst=os.path.join(folder, file),
+                progress=False,
+            )
+            for file, url in names.items()
+        ]
 
-    if remote:
-        print(f'Failed to download model "{file}"')
-
-    return "INVALID"
-
-
-def _download(names: list[str]) -> dict[str, os.PathLike]:
-    models = {}
-
-    with ThreadPoolExecutor() as executor:
-        for name in names:
-            if "-world" in name:
-                models[name] = executor.submit(
-                    _hf_download,
-                    name,
-                    repo_id="Bingsu/yolo-world-mirror",
-                    remote=not no_huggingface,
-                )
-            else:
-                models[name] = executor.submit(
-                    _hf_download,
-                    name,
-                    repo_id="Bingsu/adetailer",
-                    remote=not no_huggingface,
-                )
-
-    return {name: future.result() for name, future in models.items()}
+    for file, future in zip(names.keys(), futures):
+        try:
+            future.result()
+        except Exception:
+            print(f'Failed to download "{file}"')
 
 
-def get_models(*dirs: str) -> dict[str, os.PathLike]:
+def get_models(ad_dir: str, *extra_dirs: str) -> dict[str, os.PathLike]:
+
+    TO_DOWNLOAD: Final[dict[str, URL]] = {
+        # https://huggingface.co/Bingsu/adetailer
+        "face_yolov8n.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8n.pt?download=true",
+        "face_yolov8s.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8s.pt?download=true",
+        "hand_yolov8n.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt?download=true",
+        "hand_yolov8s.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8s.pt?download=true",
+        "person_yolov8n-seg.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8n-seg.pt?download=true",
+        "person_yolov8s-seg.pt": "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8s-seg.pt?download=true",
+        # https://github.com/ultralytics/assets
+        "yolov8x-worldv2.pt": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8x-worldv2.pt",
+        # https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector#models
+        "mediapipe_face_short.tflite": "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite",
+        "mediapipe_face_full.tflite": "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/latest/blaze_face_full_range.tflite",
+        # https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker#models
+        "face_landmarker.task": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
+    }
+
+    if not no_huggingface:
+        _download(ad_dir, TO_DOWNLOAD)
+
+    models: dict[str, os.PathLike] = {}
     model_paths: list[Path] = []
 
-    for _dir in dirs:
+    for _dir in (ad_dir, *extra_dirs):
         if not os.path.isdir(_dir):
             continue
         model_paths.extend(_scan_models(Path(_dir)))
-
-    models: dict[str, os.PathLike] = {}
-
-    to_download = (
-        "face_yolov8n.pt",
-        "face_yolov8s.pt",
-        "hand_yolov8n.pt",
-        "person_yolov8n-seg.pt",
-        "person_yolov8s-seg.pt",
-        "yolov8x-worldv2.pt",
-    )
-
-    models.update(_download(to_download))
-
-    models.update(
-        {
-            "mediapipe_face_full": "mediapipe_face_full",
-            "mediapipe_face_short": "mediapipe_face_short",
-            "mediapipe_face_mesh": "mediapipe_face_mesh",
-            "mediapipe_face_mesh_eyes_only": "mediapipe_face_mesh_eyes_only",
-        }
-    )
-
-    models = {k: v for k, v in models.items() if v != "INVALID"}
 
     for path in model_paths:
         if path.name in models:

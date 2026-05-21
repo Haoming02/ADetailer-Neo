@@ -180,8 +180,8 @@ def _key_area(bbox: list[NUM]) -> NUM:
 
 
 def sort_bboxes(
-    pred: PredictOutput[NUM], order: int | SortBy = SortBy.NONE
-) -> PredictOutput[NUM]:
+    pred: PredictOutput, order: int | SortBy = SortBy.NONE
+) -> PredictOutput:
     if order == SortBy.NONE or len(pred.bboxes) <= 1:
         return pred
 
@@ -209,9 +209,7 @@ def is_in_ratio(bbox: list[NUM], low: float, high: float, orig_area: int) -> boo
     return low <= area / orig_area <= high
 
 
-def filter_by_ratio(
-    pred: PredictOutput[NUM], low: float, high: float
-) -> PredictOutput[NUM]:
+def filter_by_ratio(pred: PredictOutput, low: float, high: float) -> PredictOutput:
     if not pred.bboxes:
         return pred
 
@@ -225,7 +223,7 @@ def filter_by_ratio(
     return pred
 
 
-def filter_k_largest(pred: PredictOutput[NUM], k: int = 0) -> PredictOutput[NUM]:
+def filter_k_largest(pred: PredictOutput, k: int = 0) -> PredictOutput:
     if not pred.bboxes or k == 0:
         return pred
     areas = [bbox_area(bbox) for bbox in pred.bboxes]
@@ -237,7 +235,7 @@ def filter_k_largest(pred: PredictOutput[NUM], k: int = 0) -> PredictOutput[NUM]
     return pred
 
 
-def filter_k_most_confident(pred: PredictOutput[NUM], k: int = 0) -> PredictOutput[NUM]:
+def filter_k_most_confident(pred: PredictOutput, k: int = 0) -> PredictOutput:
     if not pred.bboxes or not pred.confidences or k == 0:
         return pred
     idx = np.argsort(pred.confidences)[-k:]
@@ -248,9 +246,7 @@ def filter_k_most_confident(pred: PredictOutput[NUM], k: int = 0) -> PredictOutp
     return pred
 
 
-def filter_k_by(
-    pred: PredictOutput[NUM], k: int = 0, by: str = "Area"
-) -> PredictOutput[NUM]:
+def filter_k_by(pred: PredictOutput, k: int = 0, by: str = "Area") -> PredictOutput:
     if by == "Area":
         return filter_k_largest(pred, k)
     if by == "Confidence":

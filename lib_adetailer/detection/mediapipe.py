@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from functools import partial
+import os
 
 import cv2
 import numpy as np
@@ -10,171 +8,21 @@ from .common import PredictOutput, create_bbox_from_mask, create_mask_from_bbox
 
 
 def mediapipe_predict(
-    model_type: str, image: Image.Image, confidence: float = 0.3
+    model_path: os.PathLike, image: Image.Image, confidence: float = 0.3
 ) -> PredictOutput:
-    mapping = {
-        "mediapipe_face_short": partial(mediapipe_face_detection, 0),
-        "mediapipe_face_full": partial(mediapipe_face_detection, 1),
-        "mediapipe_face_mesh": mediapipe_face_mesh,
-        "mediapipe_face_mesh_eyes_only": mediapipe_face_mesh_eyes_only,
-    }
-    if model_type in mapping:
-        func = mapping[model_type]
-        try:
-            return func(image, confidence)
-        except Exception:
-            return PredictOutput()
-    msg = f"[-] ADetailer: Invalid mediapipe model type: {model_type}, Available: {list(mapping.keys())!r}"
-    raise RuntimeError(msg)
+
+    if "landmarker" in model_path:
+        return _mediapipe_face_mesh(model_path, image, confidence)
+    elif "face" in model_path:
+        return _mediapipe_face_detection(model_path, image, confidence)
+    else:
+        raise RuntimeError(f'[ADetailer]: Invalid MediaPipe Model: "{model_path}"')
 
 
-def mediapipe_face_detection(
-    model_type: int, image: Image.Image, confidence: float = 0.3
-) -> PredictOutput[float]:
-    import mediapipe as mp
-
-    img_width, img_height = image.size
-
-    mp_face_detection = mp.solutions.face_detection
-    draw_util = mp.solutions.drawing_utils
-
-    img_array = np.array(image)
-
-    with mp_face_detection.FaceDetection(
-        model_selection=model_type, min_detection_confidence=confidence
-    ) as face_detector:
-        pred = face_detector.process(img_array)
-
-    if pred.detections is None:
-        return PredictOutput()
-
-    preview_array = img_array.copy()
-
-    bboxes = []
-    confidences = []
-    for detection in pred.detections:
-        draw_util.draw_detection(preview_array, detection)
-
-        bbox = detection.location_data.relative_bounding_box
-        x1 = bbox.xmin * img_width
-        y1 = bbox.ymin * img_height
-        w = bbox.width * img_width
-        h = bbox.height * img_height
-        x2 = x1 + w
-        y2 = y1 + h
-
-        confidences.append(detection.score)
-        bboxes.append([x1, y1, x2, y2])
-
-    masks = create_mask_from_bbox(bboxes, image.size)
-    preview = Image.fromarray(preview_array)
-
-    return PredictOutput(
-        bboxes=bboxes, masks=masks, confidences=confidences, preview=preview
-    )
-
-
-def mediapipe_face_mesh(
-    image: Image.Image, confidence: float = 0.3
-) -> PredictOutput[int]:
-    import mediapipe as mp
-
-    mp_face_mesh = mp.solutions.face_mesh
-    draw_util = mp.solutions.drawing_utils
-    drawing_styles = mp.solutions.drawing_styles
-
-    w, h = image.size
-
-    with mp_face_mesh.FaceMesh(
-        static_image_mode=True, max_num_faces=20, min_detection_confidence=confidence
-    ) as face_mesh:
-        arr = np.array(image)
-        pred = face_mesh.process(arr)
-
-        if pred.multi_face_landmarks is None:
-            return PredictOutput()
-
-        preview = arr.copy()
-        masks = []
-        confidences = []
-
-        for landmarks in pred.multi_face_landmarks:
-            draw_util.draw_landmarks(
-                image=preview,
-                landmark_list=landmarks,
-                connections=mp_face_mesh.FACEMESH_TESSELATION,
-                landmark_drawing_spec=None,
-                connection_drawing_spec=drawing_styles.get_default_face_mesh_tesselation_style(),
-            )
-
-            points = np.array(
-                [[land.x * w, land.y * h] for land in landmarks.landmark], dtype=int
-            )
-            outline = cv2.convexHull(points).reshape(-1).tolist()
-
-            mask = Image.new("L", image.size, "black")
-            draw = ImageDraw.Draw(mask)
-            draw.polygon(outline, fill="white")
-            masks.append(mask)
-            confidences.append(1.0)  # Confidence is unknown
-
-        bboxes = create_bbox_from_mask(masks, image.size)
-        preview = Image.fromarray(preview)
-        return PredictOutput(
-            bboxes=bboxes, masks=masks, confidences=confidences, preview=preview
-        )
-
-
-def mediapipe_face_mesh_eyes_only(
-    image: Image.Image, confidence: float = 0.3
-) -> PredictOutput[int]:
-    import mediapipe as mp
-
-    mp_face_mesh = mp.solutions.face_mesh
-
-    left_idx = np.array(list(mp_face_mesh.FACEMESH_LEFT_EYE)).flatten()
-    right_idx = np.array(list(mp_face_mesh.FACEMESH_RIGHT_EYE)).flatten()
-
-    w, h = image.size
-
-    with mp_face_mesh.FaceMesh(
-        static_image_mode=True, max_num_faces=20, min_detection_confidence=confidence
-    ) as face_mesh:
-        arr = np.array(image)
-        pred = face_mesh.process(arr)
-
-        if pred.multi_face_landmarks is None:
-            return PredictOutput()
-
-        preview = image.copy()
-        masks = []
-        confidences = []
-
-        for landmarks in pred.multi_face_landmarks:
-            points = np.array(
-                [[land.x * w, land.y * h] for land in landmarks.landmark], dtype=int
-            )
-            left_eyes = points[left_idx]
-            right_eyes = points[right_idx]
-            left_outline = cv2.convexHull(left_eyes).reshape(-1).tolist()
-            right_outline = cv2.convexHull(right_eyes).reshape(-1).tolist()
-
-            mask = Image.new("L", image.size, "black")
-            draw = ImageDraw.Draw(mask)
-            for outline in (left_outline, right_outline):
-                draw.polygon(outline, fill="white")
-            masks.append(mask)
-            confidences.append(1.0)  # Confidence is unknown
-
-        bboxes = create_bbox_from_mask(masks, image.size)
-        preview = draw_preview(preview, bboxes, masks)
-        return PredictOutput(
-            bboxes=bboxes, masks=masks, confidences=confidences, preview=preview
-        )
-
-
-def draw_preview(
-    preview: Image.Image, bboxes: list[list[int]], masks: list[Image.Image]
+def _draw_preview(
+    preview: Image.Image,
+    bboxes: list[tuple[int, int, int, int]],
+    masks: list[Image.Image],
 ) -> Image.Image:
     red = Image.new("RGB", preview.size, "red")
     for mask in masks:
@@ -186,3 +34,105 @@ def draw_preview(
         draw.rectangle(bbox, outline="red", width=2)
 
     return preview
+
+
+def _mediapipe_face_mesh(
+    model_path: str,
+    image: Image.Image,
+    confidence: float = 0.3,
+) -> PredictOutput:
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
+    w, h = image.size
+    img_array = np.array(image)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_array)
+
+    base_options = python.BaseOptions(model_asset_path=model_path)
+    options = vision.FaceLandmarkerOptions(
+        base_options=base_options,
+        num_faces=20,
+        min_face_detection_confidence=confidence,
+    )
+
+    with vision.FaceLandmarker.create_from_options(options) as face_landmarker:
+        pred = face_landmarker.detect(mp_image)
+
+    if not pred.face_landmarks:
+        return PredictOutput()
+
+    preview = image.copy()
+    masks = []
+    confidences = []
+
+    for landmarks in pred.face_landmarks:
+        points = np.array([[int(land.x * w), int(land.y * h)] for land in landmarks])
+
+        mask = Image.new("L", image.size, "black")
+        draw = ImageDraw.Draw(mask)
+
+        outline = cv2.convexHull(points).reshape(-1).tolist()
+        draw.polygon(outline, fill="white")
+
+        masks.append(mask)
+        confidences.append(1.0)
+
+    bboxes = create_bbox_from_mask(masks, image.size)
+
+    preview = _draw_preview(preview, bboxes, masks)
+
+    return PredictOutput(
+        bboxes=bboxes,
+        masks=masks,
+        confidences=confidences,
+        preview=preview,
+    )
+
+
+def _mediapipe_face_detection(
+    model_path: str, image: Image.Image, confidence: float = 0.3
+) -> PredictOutput:
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
+    img_array = np.array(image)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_array)
+
+    base_options = python.BaseOptions(model_asset_path=model_path)
+    options = vision.FaceDetectorOptions(
+        base_options=base_options, min_detection_confidence=confidence
+    )
+
+    with vision.FaceDetector.create_from_options(options) as detector:
+        pred = detector.detect(mp_image)
+
+    if not pred.detections:
+        return PredictOutput()
+
+    preview_array = img_array.copy()
+    bboxes = []
+    confidences = []
+
+    for detection in pred.detections:
+        bbox = detection.bounding_box
+        x1 = int(bbox.origin_x)
+        y1 = int(bbox.origin_y)
+        x2 = int(x1 + bbox.width)
+        y2 = int(y1 + bbox.height)
+
+        confidences.append(detection.categories[0].score)
+        bboxes.append([x1, y1, x2, y2])
+
+        cv2.rectangle(preview_array, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+    masks = create_mask_from_bbox(bboxes, image.size)
+    preview = Image.fromarray(preview_array)
+
+    return PredictOutput(
+        bboxes=bboxes,
+        masks=masks,
+        confidences=confidences,
+        preview=preview,
+    )

@@ -763,13 +763,15 @@ class AfterDetailerScript(scripts.Script):
         i2i = self.get_i2i_p(p, args, pp.image)
         ad_prompts, ad_negatives = self.get_prompt(p, args)
 
-        is_mediapipe = args.is_mediapipe()
+        ad_model = self.get_ad_model(args.ad_model)
 
-        if is_mediapipe:
-            pred = mediapipe_predict(args.ad_model, pp.image, args.ad_confidence)
-
+        if args.is_mediapipe():
+            pred = mediapipe_predict(
+                ad_model,
+                image=pp.image,
+                confidence=args.ad_confidence,
+            )
         else:
-            ad_model = self.get_ad_model(args.ad_model)
             pred = ultralytics_predict(
                 ad_model,
                 image=pp.image,
@@ -796,7 +798,7 @@ class AfterDetailerScript(scripts.Script):
         processed = None
         state.job_count += steps
 
-        if is_mediapipe:
+        if args.is_mediapipe():
             print(f"MediaPipe: {steps} Detected")
 
         p2 = copy(i2i)

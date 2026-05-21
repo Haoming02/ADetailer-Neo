@@ -199,7 +199,7 @@ class ADetailerArgs(BaseModel):
         return p
 
     def is_mediapipe(self) -> bool:
-        return self.ad_model.lower().startswith("mediapipe")
+        return not self.ad_model.lower().endswith(".pt")
 
     def need_skip(self) -> bool:
         return self.ad_model == "None" or self.ad_tab_enable is False
