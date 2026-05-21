@@ -2,7 +2,7 @@ import copy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from modules.processing import StableDiffusionProcessing
+    from modules.processing import StableDiffusionProcessingImg2Img
 
 import numpy as np
 from lib_controlnet import external_code, global_state
@@ -11,46 +11,26 @@ from lib_controlnet.external_code import ControlNetUnit
 from modules import scripts
 
 
-def find_script(p: "StableDiffusionProcessing", script_title: str) -> scripts.Script:
-    script = next((s for s in p.scripts.scripts if s.title() == script_title), None)
-    if not script:
-        msg = f"Script not found: {script_title!r}"
-        raise RuntimeError(msg)
+def find_script(p: "StableDiffusionProcessingImg2Img", script: str) -> scripts.Script:
+    script = next((s for s in p.scripts.scripts if s.title() == script), None)
+    assert script is not None
     return script
-
-
-def add_forge_script_to_adetailer_run(
-    p: "StableDiffusionProcessing", script_title: str, script_args: list
-):
-    p.scripts = copy.copy(scripts.scripts_img2img)
-    p.scripts.alwayson_scripts = []
-    p.script_args_value = []
-
-    script = copy.copy(find_script(p, script_title))
-    script.args_from = len(p.script_args_value)
-    script.args_to = len(p.script_args_value) + len(script_args)
-    p.scripts.alwayson_scripts.append(script)
-    p.script_args_value.extend(script_args)
 
 
 class ControlNetExt:
     def __init__(self):
-        self.cn_available = False
-        self.external_cn = external_code
-
-    def init_controlnet(self):
-        self.cn_available = True
+        self._cnet_script: scripts.Script = None
 
     def update_scripts_args(
         self,
-        p,
+        p: "StableDiffusionProcessingImg2Img",
         model: str,
-        module: str | None,
+        module: str,
         weight: float,
         guidance_start: float,
         guidance_end: float,
     ):
-        if (not self.cn_available) or model == "None":
+        if model == "None":
             return
 
         image = np.asarray(p.init_images[0])
@@ -65,7 +45,7 @@ class ControlNetExt:
             resize_mode=external_code.resize_mode_from_value(p.resize_mode),
         )
 
-        add_forge_script_to_adetailer_run(
+        self.add_forge_script_to_adetailer_run(
             p,
             "ControlNet",
             [
@@ -81,6 +61,24 @@ class ControlNetExt:
                 )
             ],
         )
+
+    def add_forge_script_to_adetailer_run(
+        self,
+        p: "StableDiffusionProcessingImg2Img",
+        script_title: str,
+        script_args: list,
+    ):
+        p.scripts = copy.copy(scripts.scripts_img2img)
+        p.scripts.alwayson_scripts = []
+        p.script_args_value = []
+
+        if self._cnet_script is None:
+            self._cnet_script = copy.copy(find_script(p, script_title))
+
+        self._cnet_script.args_from = len(p.script_args_value)
+        self._cnet_script.args_to = len(p.script_args_value) + len(script_args)
+        p.scripts.alwayson_scripts.append(self._cnet_script)
+        p.script_args_value.extend(script_args)
 
 
 def get_cn_models() -> list[str]:

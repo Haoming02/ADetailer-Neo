@@ -81,10 +81,7 @@ img2img_submit_button: gr.Button = None
 
 class AfterDetailerScript(scripts.Script):
     def __init__(self):
-        super().__init__()
-        self.ultralytics_device = ""  # TODO
-
-        self.controlnet_ext = None
+        self.controlnet_ext: ControlNetExt = None
 
     def __repr__(self):
         return f"{self.__class__.__name__}(version={__version__})"
@@ -119,11 +116,10 @@ class AfterDetailerScript(scripts.Script):
         return components
 
     def init_controlnet_ext(self) -> None:
-        if self.controlnet_ext is not None:
-            return
+        assert self.controlnet_ext is None
+
         try:
             self.controlnet_ext = ControlNetExt()
-            self.controlnet_ext.init_controlnet()
         except Exception as e:
             errors.display(e, "init_controlnet")
 
@@ -131,11 +127,7 @@ class AfterDetailerScript(scripts.Script):
         if self.controlnet_ext is None:
             self.init_controlnet_ext()
 
-        if (
-            self.controlnet_ext is not None
-            and self.controlnet_ext.cn_available
-            and args.ad_controlnet_model != "None"
-        ):
+        if self.controlnet_ext is not None and args.ad_controlnet_model != "None":
             self.controlnet_ext.update_scripts_args(
                 p,
                 model=args.ad_controlnet_model,
@@ -776,7 +768,7 @@ class AfterDetailerScript(scripts.Script):
                 ad_model,
                 image=pp.image,
                 confidence=args.ad_confidence,
-                device=self.ultralytics_device,
+                device=shared.device,
                 classes=args.ad_model_classes,
             )
 
