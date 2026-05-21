@@ -1,21 +1,18 @@
-from __future__ import annotations
-
-from pathlib import Path
+import os
 from typing import TYPE_CHECKING
-
-import cv2
-from PIL import Image
-from torchvision.transforms.functional import to_pil_image
-
-from .common import PredictOutput, create_mask_from_bbox
 
 if TYPE_CHECKING:
     import torch
-    from ultralytics import YOLO, YOLOWorld
+
+import cv2
+from PIL import Image
+
+from ..utils import ensure_pil_image
+from .common import PredictOutput, create_mask_from_bbox
 
 
 def ultralytics_predict(
-    model_path: str | Path,
+    model_path: os.PathLike,
     image: Image.Image,
     confidence: float = 0.3,
     device: str = "",
@@ -24,12 +21,17 @@ def ultralytics_predict(
     from ultralytics import YOLO
 
     model = YOLO(model_path)
-    apply_classes(model, model_path, classes)
+
+    if bool(classes) and "-world" in str(model_path):
+        if parsed := [c.strip() for c in classes.split(",") if c.strip()]:
+            model.set_classes(parsed)
+
     pred = model(image, conf=confidence, device=device)
 
     bboxes = pred[0].boxes.xyxy.cpu().numpy()
     if bboxes.size == 0:
         return PredictOutput()
+
     bboxes = bboxes.tolist()
 
     if pred[0].masks is None:
@@ -44,28 +46,14 @@ def ultralytics_predict(
     preview = Image.fromarray(preview)
 
     return PredictOutput(
-        bboxes=bboxes, masks=masks, confidences=confidences, preview=preview
+        bboxes=bboxes,
+        masks=masks,
+        confidences=confidences,
+        preview=preview,
     )
 
 
-def apply_classes(model: YOLO | YOLOWorld, model_path: str | Path, classes: str):
-    if not classes or "-world" not in Path(model_path).stem:
-        return
-    parsed = [c.strip() for c in classes.split(",") if c.strip()]
-    if parsed:
-        model.set_classes(parsed)
-
-
-def mask_to_pil(masks: torch.Tensor, shape: tuple[int, int]) -> list[Image.Image]:
-    """
-    Parameters
-    ----------
-    masks: torch.Tensor, dtype=torch.float32 or torch.uint8, shape=(N, H, W).
-        uint8 tensor is expected to have values 0 or 1 (not 0-255).
-
-    shape: tuple[int, int]
-        (W, H) of the original image
-    """
+def mask_to_pil(masks: "torch.Tensor", shape: tuple[int, int]) -> list[Image.Image]:
     masks = masks.float()
     n = masks.shape[0]
-    return [to_pil_image(masks[i], mode="L").resize(shape) for i in range(n)]
+    return [ensure_pil_image(masks[i], mode="L").resize(shape) for i in range(n)]

@@ -7,6 +7,7 @@ from typing import Any
 import gradio as gr
 from lib_controlnet import global_state
 
+from modules.launch_utils import is_installed
 from modules.ui_components import InputAccordion
 
 from . import __version__
@@ -71,12 +72,7 @@ def on_generate_click(state: dict, *values: Any):
 
 
 def on_ad_model_update(model: str):
-    if "-world" in model:
-        return gr.update(
-            visible=True,
-            placeholder="Comma separated class names to detect, ex: 'person,cat'. default: COCO 80 classes",
-        )
-    return gr.update(visible=False, placeholder="")
+    return gr.update(visible="-world" in model)
 
 
 def on_cn_model_update(cn_model_name: str):
@@ -183,6 +179,14 @@ def one_ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
                 label="ADetailer detector classes" + suffix(n),
                 value="",
                 visible=False,
+                interactive=is_installed("clip"),
+                placeholder=(
+                    'Comma-separated class names to detect (e.g. "person,cat" ; default: COCO 80 classes)'
+                    if is_installed("clip")
+                    else "Detector Classes require Clip to be installed (https://github.com/ultralytics/CLIP.git)"
+                ),
+                lines=1,
+                max_lines=1,
                 elem_id=eid("ad_model_classes"),
             )
 
