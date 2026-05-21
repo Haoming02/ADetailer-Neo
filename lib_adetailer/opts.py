@@ -1,22 +1,15 @@
-from __future__ import annotations
-
-from collections.abc import Sequence
-from typing import ClassVar
+import math
 
 import numpy as np
-
-from .utils import NUM
 
 
 def dynamic_denoise_strength(
     denoise_power: float,
     denoise_strength: float,
-    bbox: Sequence[NUM],
+    bbox: tuple[int, int, int, int],
     image_size: tuple[int, int],
 ) -> float:
-    if len(bbox) != 4:
-        msg = f"bbox length must be 4, got {len(bbox)}"
-        raise ValueError(msg)
+    assert len(bbox) == 4
 
     if np.isclose(denoise_power, 0.0) or len(bbox) != 4:
         return denoise_strength
@@ -32,70 +25,38 @@ def dynamic_denoise_strength(
     return denoise_strength * denoise_modifier
 
 
-class _OptimalCropSize:
-    sdxl_res: ClassVar[list[tuple[int, int]]] = [
-        (1024, 1024),
-        (1152, 896),
-        (896, 1152),
-        (1216, 832),
-        (832, 1216),
-        (1344, 768),
-        (768, 1344),
-        (1536, 640),
-        (640, 1536),
-    ]
+class OptimalCropSize:
 
-    def sdxl(
-        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[NUM]
-    ) -> tuple[int, int]:
-        if len(bbox) != 4:
-            msg = f"bbox length must be 4, got {len(bbox)}"
-            raise ValueError(msg)
+    @staticmethod
+    def _round(v: int) -> int:
+        return round(v / 64.0) * 64
+
+    @staticmethod
+    def strict(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
+        assert len(bbox) == 4
 
         bbox_width = bbox[2] - bbox[0]
         bbox_height = bbox[3] - bbox[1]
         bbox_aspect_ratio = bbox_width / bbox_height
 
-        resolutions = [
-            res
-            for res in self.sdxl_res
-            if (res[0] >= bbox_width and res[1] >= bbox_height)
-            and (res[0] >= inpaint_width or res[1] >= inpaint_height)
-        ]
+        target = 1024 * 1024
+        w = math.sqrt(target * bbox_aspect_ratio)
+        h = w / bbox_aspect_ratio
 
-        if not resolutions:
-            return inpaint_width, inpaint_height
+        return OptimalCropSize._round(w), OptimalCropSize._round(h)
 
-        return min(
-            resolutions,
-            key=lambda res: abs((res[0] / res[1]) - bbox_aspect_ratio),
-        )
-
+    @staticmethod
     def free(
-        self, inpaint_width: int, inpaint_height: int, bbox: Sequence[NUM]
+        inpaint_width: int, inpaint_height: int, bbox: tuple[int, int, int, int]
     ) -> tuple[int, int]:
-        if len(bbox) != 4:
-            msg = f"bbox length must be 4, got {len(bbox)}"
-            raise ValueError(msg)
+        assert len(bbox) == 4
 
         bbox_width = bbox[2] - bbox[0]
         bbox_height = bbox[3] - bbox[1]
         bbox_aspect_ratio = bbox_width / bbox_height
 
-        scale_size = max(inpaint_width, inpaint_height)
+        target = inpaint_width * inpaint_height
+        w = math.sqrt(target * bbox_aspect_ratio)
+        h = w / bbox_aspect_ratio
 
-        if bbox_aspect_ratio > 1:
-            optimal_width = scale_size
-            optimal_height = scale_size / bbox_aspect_ratio
-        else:
-            optimal_width = scale_size * bbox_aspect_ratio
-            optimal_height = scale_size
-
-        # Round up to the nearest multiple of 8 to make the dimensions friendly for upscaling/diffusion.
-        optimal_width = ((optimal_width + 8 - 1) // 8) * 8
-        optimal_height = ((optimal_height + 8 - 1) // 8) * 8
-
-        return int(optimal_width), int(optimal_height)
-
-
-optimal_crop_size = _OptimalCropSize()
+        return OptimalCropSize._round(w), OptimalCropSize._round(h)

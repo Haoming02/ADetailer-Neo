@@ -36,7 +36,7 @@ from lib_adetailer.mask import (
     mask_preprocess,
     sort_bboxes,
 )
-from lib_adetailer.opts import dynamic_denoise_strength, optimal_crop_size
+from lib_adetailer.opts import OptimalCropSize, dynamic_denoise_strength
 from lib_adetailer.ui import WebuiInfo, adui, ordinal, suffix
 from lib_adetailer.utils import ensure_pil_image, print
 from lib_adetailer.utils.helper import (
@@ -615,48 +615,25 @@ class AfterDetailerScript(scripts.Script):
 
     @staticmethod
     def get_optimal_crop_image_size(
-        inpaint_width: int, inpaint_height: int, bbox: Sequence[Any]
+        w: int, h: int, bbox: Sequence[Any]
     ) -> tuple[int, int]:
-        calculate_optimal_crop = opts.data.get(
-            "ad_match_inpaint_bbox_size", InpaintBBoxMatchMode.OFF.value
+        calculate_optimal_crop: str = opts.data.get(
+            "ad_match_inpaint_bbox_size",
+            InpaintBBoxMatchMode.OFF.value,
         )
 
-        optimal_resolution: tuple[int, int] | None = None
+        optimal: tuple[int, int] = None
 
-        # Off
-        if calculate_optimal_crop == InpaintBBoxMatchMode.OFF.value:
-            return (inpaint_width, inpaint_height)
+        match calculate_optimal_crop:
+            case InpaintBBoxMatchMode.OFF.value:
+                return (w, h)
+            case InpaintBBoxMatchMode.STRICT.value:
+                optimal = OptimalCropSize.strict(bbox)
+            case InpaintBBoxMatchMode.FREE.value:
+                optimal = OptimalCropSize.free(w, h, bbox)
 
-        # Strict (SDXL only)
-        if calculate_optimal_crop == InpaintBBoxMatchMode.STRICT.value:
-            if not shared.sd_model.is_sdxl:
-                print("Strict matching is only available for SDXL...")
-                return (inpaint_width, inpaint_height)
-
-            optimal_resolution = optimal_crop_size.sdxl(
-                inpaint_width, inpaint_height, bbox
-            )
-
-        # Free
-        elif calculate_optimal_crop == InpaintBBoxMatchMode.FREE.value:
-            optimal_resolution = optimal_crop_size.free(
-                inpaint_width, inpaint_height, bbox
-            )
-
-        if optimal_resolution is None:
-            print("Using original inpainting dimensions...")
-            return (inpaint_width, inpaint_height)
-
-        # Only use optimal dimensions if they're different enough to current inpaint dimensions.
-        if (
-            abs(optimal_resolution[0] - inpaint_width) > inpaint_width * 0.1
-            or abs(optimal_resolution[1] - inpaint_height) > inpaint_height * 0.1
-        ):
-            print(
-                f"Inpaint Dimensions: {inpaint_width}x{inpaint_height} -> {optimal_resolution[0]}x{optimal_resolution[1]}"
-            )
-
-        return optimal_resolution
+        print(f"Inpaint Dimensions: {w}x{h} -> {optimal[0]}x{optimal[1]}")
+        return optimal
 
     def fix_p2(
         self,
@@ -943,14 +920,22 @@ def on_ui_settings():
     shared.opts.add_option(
         "ad_match_inpaint_bbox_size",
         shared.OptionInfo(
-            default=InpaintBBoxMatchMode.OFF.value,
+            default=InpaintBBoxMatchMode.STRICT.value,
             component=gr.Radio,
             component_args={"choices": INPAINT_BBOX_MATCH_MODES},
-            label="Automatically try to match inpainting dimension to bounding box size",
+            label="Automatically match the inpainting resolution to the size of bounding box",
             **args,
-        ).info(
-            "Strict is for SDXL only, and matches exactly to trained SDXL resolutions. Free works with any model, but will use potentially unsupported dimensions."
-        ),  # TODO
+        )
+        .info('only affects when "Use separate width/height" is off')
+        .html(
+            """
+<ul style="margin-left: 1.5em">
+    <li><b>Off</b>: Use the original generation resolution</li>
+    <li><b>Strict</b>: Use the bounding box aspect ratio at 1 MP</li>
+    <li><b>Free</b>: Use the bounding box aspect ratio at the original resolution</li>
+</ul>
+                """
+        ),
     )
 
 

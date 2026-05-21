@@ -278,7 +278,7 @@ BUILTIN_SCRIPT = ",".join(sorted(_builtin_script))
 
 class InpaintBBoxMatchMode(Enum):
     OFF = "Off"
-    STRICT = "Strict (SDXL only)"
+    STRICT = "Strict"
     FREE = "Free"
 
 
