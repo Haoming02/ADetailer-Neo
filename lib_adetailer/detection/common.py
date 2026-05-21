@@ -32,15 +32,19 @@ def _scan_models(path: Path) -> list[Path]:
     ]
 
 
+def _download_model(url: URL, filename: os.PathLike):
+    if not os.path.isfile(filename):
+        download_url_to_file(url=url, dst=filename, progress=False)
+
+
 def _download(folder: os.PathLike, names: dict[str, URL]):
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures: list[Future] = [
             executor.submit(
-                download_url_to_file,
+                _download_model,
                 url=url,
-                dst=os.path.join(folder, file),
-                progress=False,
+                filename=os.path.join(folder, file),
             )
             for file, url in names.items()
         ]
