@@ -101,6 +101,7 @@ class AfterDetailerScript(scripts.Script):
         sampler_names: list[str] = [sampler.name for sampler in ALL_SAMPLERS]
         scheduler_names: list[str] = [x.label for x in ALL_SCHEDULERS]
         checkpoint_list: list[str] = checkpoint_tiles(use_short=True)
+        vae_list: list[str] = list(module_list.keys())
 
         webui_info = WebuiInfo(
             ad_model_list=ad_model_list,
@@ -109,7 +110,7 @@ class AfterDetailerScript(scripts.Script):
             t2i_button=txt2img_submit_button,
             i2i_button=img2img_submit_button,
             checkpoints_list=checkpoint_list,
-            vae_list=module_list.keys(),
+            vae_list=vae_list,
         )
 
         components, infotext_fields = adui(num_models, is_img2img, webui_info)
@@ -343,19 +344,13 @@ class AfterDetailerScript(scripts.Script):
     def get_override_settings(self, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
 
-        if (
-            args.ad_use_checkpoint
-            and args.ad_checkpoint
-            and args.ad_checkpoint not in ("None", "Use same checkpoint")
-        ):
-            d["sd_model_checkpoint"] = args.ad_checkpoint
+        if args.ad_use_checkpoint:
+            if args.ad_checkpoint not in (None, "None", "Use same checkpoint"):
+                d["sd_model_checkpoint"] = args.ad_checkpoint
 
-        if (
-            args.ad_use_vae
-            and args.ad_vae
-            and args.ad_vae not in ("None", "Use same VAE")
-        ):
-            d["sd_vae"] = args.ad_vae
+        if args.ad_use_vae:
+            if args.ad_vae not in (None, "None", "Use same VAE"):
+                d["sd_vae"] = args.ad_vae
 
         return d
 
@@ -818,6 +813,9 @@ def on_after_component(component: gr.components.Component, **kwargs):
         img2img_submit_button = component
 
 
+# region Settings
+
+
 def on_ui_settings():
     args = {"section": ("ADetailer", "ADetailer"), "category_id": "postprocessing"}
 
@@ -924,7 +922,7 @@ def on_ui_settings():
             label="Automatically match the inpainting resolution to the size of bounding box",
             **args,
         )
-        .info('only affects when "Use separate width/height" is off')
+        .info('only affects when "Use separate Width/Height" is off')
         .html(
             """
 <ul style="margin-left: 1.5em">

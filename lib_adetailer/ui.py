@@ -33,8 +33,8 @@ class WebuiInfo:
 # region Utils
 
 
-def gr_interactive(value: bool = True):
-    return gr.update(interactive=value)
+def gr_interactive(value: bool) -> gr.update:
+    return gr.update(visible=value, interactive=value)
 
 
 def ordinal(n: int) -> str:
@@ -293,42 +293,28 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
         )
 
 
-# TODO
 def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
-    with gr.Group():
-        with gr.Row():
-            w.ad_mask_blur = gr.Slider(
-                label="Inpaint mask blur" + suffix(n),
-                minimum=0,
-                maximum=64,
-                step=1,
-                value=4,
-                visible=True,
-                elem_id=eid("ad_mask_blur"),
-            )
+    with FormColumn():
+        w.ad_mask_blur = gr.Slider(
+            label="Inpaint Mask Blur",
+            minimum=0,
+            maximum=64,
+            step=4,
+            value=4,
+            elem_id=eid("ad_mask_blur"),
+        )
 
-            w.ad_denoising_strength = gr.Slider(
-                label="Inpaint denoising strength" + suffix(n),
-                minimum=0.0,
-                maximum=1.0,
-                step=0.01,
-                value=0.4,
-                visible=True,
-                elem_id=eid("ad_denoising_strength"),
-            )
-
-        with gr.Row():
+        with FormRow():
             with gr.Column(variant="compact"):
                 w.ad_inpaint_only_masked = gr.Checkbox(
-                    label="Inpaint only masked" + suffix(n),
                     value=True,
-                    visible=True,
+                    label="Inpaint Only Masked",
                     elem_id=eid("ad_inpaint_only_masked"),
                 )
                 w.ad_inpaint_only_masked_padding = gr.Slider(
-                    label="Inpaint only masked padding, pixels" + suffix(n),
+                    label="Only masked padding, pixels",
                     minimum=0,
                     maximum=256,
                     step=4,
@@ -338,207 +324,214 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                 )
 
                 w.ad_inpaint_only_masked.change(
-                    gr_interactive,
-                    inputs=w.ad_inpaint_only_masked,
-                    outputs=w.ad_inpaint_only_masked_padding,
+                    fn=gr_interactive,
+                    inputs=[w.ad_inpaint_only_masked],
+                    outputs=[w.ad_inpaint_only_masked_padding],
                     queue=False,
+                    show_progress=False,
                 )
 
-            with gr.Column(variant="compact"):
-                w.ad_use_inpaint_width_height = gr.Checkbox(
-                    label="Use separate width/height" + suffix(n),
-                    value=False,
-                    visible=True,
-                    elem_id=eid("ad_use_inpaint_width_height"),
-                )
-
-                w.ad_inpaint_width = gr.Slider(
-                    label="inpaint width" + suffix(n),
-                    minimum=64,
-                    maximum=2048,
-                    step=4,
-                    value=512,
-                    visible=True,
-                    elem_id=eid("ad_inpaint_width"),
-                )
-
-                w.ad_inpaint_height = gr.Slider(
-                    label="inpaint height" + suffix(n),
-                    minimum=64,
-                    maximum=2048,
-                    step=4,
-                    value=512,
-                    visible=True,
-                    elem_id=eid("ad_inpaint_height"),
-                )
-
-                w.ad_use_inpaint_width_height.change(
-                    lambda value: (gr_interactive(value), gr_interactive(value)),
-                    inputs=w.ad_use_inpaint_width_height,
-                    outputs=[w.ad_inpaint_width, w.ad_inpaint_height],
-                    queue=False,
-                )
-
-        with gr.Row():
-            with gr.Column(variant="compact"):
-                w.ad_use_steps = gr.Checkbox(
-                    label="Use separate steps" + suffix(n),
-                    value=False,
-                    visible=True,
-                    elem_id=eid("ad_use_steps"),
-                )
-
-                w.ad_steps = gr.Slider(
-                    label="ADetailer steps" + suffix(n),
-                    minimum=1,
-                    maximum=150,
-                    step=1,
-                    value=28,
-                    visible=True,
-                    elem_id=eid("ad_steps"),
-                )
-
-                w.ad_use_steps.change(
-                    gr_interactive,
-                    inputs=w.ad_use_steps,
-                    outputs=w.ad_steps,
-                    queue=False,
-                )
-
-            with gr.Column(variant="compact"):
-                w.ad_use_cfg_scale = gr.Checkbox(
-                    label="Use separate CFG scale" + suffix(n),
-                    value=False,
-                    visible=True,
-                    elem_id=eid("ad_use_cfg_scale"),
-                )
-
-                w.ad_cfg_scale = gr.Slider(
-                    label="ADetailer CFG scale" + suffix(n),
-                    minimum=0.0,
-                    maximum=30.0,
-                    step=0.5,
-                    value=7.0,
-                    visible=True,
-                    elem_id=eid("ad_cfg_scale"),
-                )
-
-                w.ad_use_cfg_scale.change(
-                    gr_interactive,
-                    inputs=w.ad_use_cfg_scale,
-                    outputs=w.ad_cfg_scale,
-                    queue=False,
-                )
-
-        with gr.Row():
-            with gr.Column(variant="compact"):
-                w.ad_use_checkpoint = gr.Checkbox(
-                    label="Use separate checkpoint" + suffix(n),
-                    value=False,
-                    visible=True,
-                    elem_id=eid("ad_use_checkpoint"),
-                )
-
-                ckpts = ["Use same checkpoint", *webui_info.checkpoints_list]
-
-                w.ad_checkpoint = gr.Dropdown(
-                    label="ADetailer checkpoint" + suffix(n),
-                    choices=ckpts,
-                    value=ckpts[0],
-                    visible=True,
-                    elem_id=eid("ad_checkpoint"),
-                )
-
-            with gr.Column(variant="compact"):
-                w.ad_use_vae = gr.Checkbox(
-                    label="Use separate VAE" + suffix(n),
-                    value=False,
-                    visible=True,
-                    elem_id=eid("ad_use_vae"),
-                )
-
-                vaes = ["Use same VAE", *webui_info.vae_list]
-
-                w.ad_vae = gr.Dropdown(
-                    label="ADetailer VAE" + suffix(n),
-                    choices=vaes,
-                    value=vaes[0],
-                    visible=True,
-                    elem_id=eid("ad_vae"),
-                )
-
-        with gr.Row(), gr.Column(variant="compact"):
-            w.ad_use_sampler = gr.Checkbox(
-                label="Use separate sampler" + suffix(n),
-                value=False,
-                visible=True,
-                elem_id=eid("ad_use_sampler"),
-            )
-
-            sampler_names = [
-                "Use same sampler",
-                *webui_info.sampler_names,
-            ]
-
-            with gr.Row():
-                w.ad_sampler = gr.Dropdown(
-                    label="ADetailer sampler" + suffix(n),
-                    choices=sampler_names,
-                    value=sampler_names[1],
-                    visible=True,
-                    elem_id=eid("ad_sampler"),
-                )
-
-                scheduler_names = [
-                    "Use same scheduler",
-                    *webui_info.scheduler_names,
-                ]
-                w.ad_scheduler = gr.Dropdown(
-                    label="ADetailer scheduler" + suffix(n),
-                    choices=scheduler_names,
-                    value=scheduler_names[0],
-                    visible=len(scheduler_names) > 1,
-                    elem_id=eid("ad_scheduler"),
-                )
-
-                w.ad_use_sampler.change(
-                    lambda value: (gr_interactive(value), gr_interactive(value)),
-                    inputs=w.ad_use_sampler,
-                    outputs=[w.ad_sampler, w.ad_scheduler],
-                    queue=False,
-                )
-
-        with gr.Row():
             with gr.Column(variant="compact"):
                 w.ad_use_noise_multiplier = gr.Checkbox(
-                    label="Use separate noise multiplier" + suffix(n),
                     value=False,
-                    visible=True,
+                    label="Use separate Noise Multiplier",
                     elem_id=eid("ad_use_noise_multiplier"),
                 )
-
                 w.ad_noise_multiplier = gr.Slider(
-                    label="Noise multiplier for img2img" + suffix(n),
+                    label="Adetailer Noise Multiplier",
                     minimum=0.5,
                     maximum=1.5,
-                    step=0.01,
+                    step=0.05,
                     value=1.0,
-                    visible=True,
+                    visible=False,
                     elem_id=eid("ad_noise_multiplier"),
                 )
 
                 w.ad_use_noise_multiplier.change(
-                    gr_interactive,
-                    inputs=w.ad_use_noise_multiplier,
-                    outputs=w.ad_noise_multiplier,
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_noise_multiplier],
+                    outputs=[w.ad_noise_multiplier],
                     queue=False,
+                    show_progress=False,
                 )
 
-        with gr.Row(), gr.Column(variant="compact"):
-            w.ad_restore_face = gr.Checkbox(
-                label="Restore faces after ADetailer" + suffix(n),
+        with gr.Column(variant="compact"):
+            w.ad_use_sampler = gr.Checkbox(
                 value=False,
+                label="Use different Sampler/Scheduler",
+                elem_id=eid("ad_use_sampler"),
+            )
+
+            sampler_names = ["Use same sampler", *webui_info.sampler_names]
+            scheduler_names = ["Use same scheduler", *webui_info.scheduler_names]
+
+            with FormRow():
+                w.ad_sampler = gr.Dropdown(
+                    label="ADetailer Sampler",
+                    choices=sampler_names,
+                    value=sampler_names[0],
+                    visible=False,
+                    elem_id=eid("ad_sampler"),
+                )
+                w.ad_scheduler = gr.Dropdown(
+                    label="ADetailer Scheduler",
+                    choices=scheduler_names,
+                    value=scheduler_names[0],
+                    visible=False,
+                    elem_id=eid("ad_scheduler"),
+                )
+
+                w.ad_use_sampler.change(
+                    fn=lambda value: (gr_interactive(value), gr_interactive(value)),
+                    inputs=[w.ad_use_sampler],
+                    outputs=[w.ad_sampler, w.ad_scheduler],
+                    queue=False,
+                    show_progress=False,
+                )
+
+        with gr.Column(variant="compact"):
+            w.ad_use_inpaint_width_height = gr.Checkbox(
+                value=False,
+                label="Use separate Width/Height",
+                elem_id=eid("ad_use_inpaint_width_height"),
+            )
+
+            with FormRow():
+                w.ad_inpaint_width = gr.Slider(
+                    label="Inpaint Width",
+                    minimum=64,
+                    maximum=2048,
+                    step=64,
+                    value=512,
+                    visible=False,
+                    elem_id=eid("ad_inpaint_width"),
+                )
+                w.ad_inpaint_height = gr.Slider(
+                    label="Inpaint Height",
+                    minimum=64,
+                    maximum=2048,
+                    step=64,
+                    value=512,
+                    visible=False,
+                    elem_id=eid("ad_inpaint_height"),
+                )
+
+                w.ad_use_inpaint_width_height.change(
+                    fn=lambda value: (gr_interactive(value), gr_interactive(value)),
+                    inputs=[w.ad_use_inpaint_width_height],
+                    outputs=[w.ad_inpaint_width, w.ad_inpaint_height],
+                    queue=False,
+                    show_progress=False,
+                )
+
+        with FormRow():
+            with gr.Column(variant="compact"):
+                w.ad_use_steps = gr.Checkbox(
+                    value=False,
+                    label="Use separate Steps",
+                    elem_id=eid("ad_use_steps"),
+                )
+                w.ad_steps = gr.Slider(
+                    label="ADetailer Steps",
+                    minimum=1,
+                    maximum=150,
+                    step=1,
+                    value=20,
+                    visible=False,
+                    elem_id=eid("ad_steps"),
+                )
+
+                w.ad_use_steps.change(
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_steps],
+                    outputs=[w.ad_steps],
+                    queue=False,
+                    show_progress=False,
+                )
+
+            with gr.Column(variant="compact"):
+                w.ad_use_cfg_scale = gr.Checkbox(
+                    value=False,
+                    label="Use separate CFG Scale",
+                    elem_id=eid("ad_use_cfg_scale"),
+                )
+                w.ad_cfg_scale = gr.Slider(
+                    label="ADetailer CFG Scale",
+                    minimum=1.0,
+                    maximum=24.0,
+                    step=0.5,
+                    value=4.0,
+                    visible=False,
+                    elem_id=eid("ad_cfg_scale"),
+                )
+
+                w.ad_use_cfg_scale.change(
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_cfg_scale],
+                    outputs=[w.ad_cfg_scale],
+                    queue=False,
+                    show_progress=False,
+                )
+
+        with FormRow():
+            with gr.Column(variant="compact"):
+                w.ad_use_checkpoint = gr.Checkbox(
+                    value=False,
+                    label="Use separate Checkpoint",
+                    elem_id=eid("ad_use_checkpoint"),
+                )
+                w.ad_checkpoint = gr.Dropdown(
+                    label="ADetailer Checkpoint",
+                    choices=webui_info.checkpoints_list,
+                    value=webui_info.checkpoints_list[0],
+                    visible=False,
+                    elem_id=eid("ad_checkpoint"),
+                )
+
+                w.ad_use_checkpoint.change(
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_checkpoint],
+                    outputs=[w.ad_checkpoint],
+                    queue=False,
+                    show_progress=False,
+                )
+
+            with gr.Column(variant="compact"):
+                w.ad_use_vae = gr.Checkbox(
+                    value=False,
+                    label="Use separate VAE",
+                    elem_id=eid("ad_use_vae"),
+                )
+                w.ad_vae = gr.Dropdown(
+                    label="ADetailer VAE",
+                    choices=webui_info.vae_list,
+                    value=webui_info.vae_list[0],
+                    visible=False,
+                    elem_id=eid("ad_vae"),
+                )
+
+                w.ad_use_vae.change(
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_vae],
+                    outputs=[w.ad_vae],
+                    queue=False,
+                    show_progress=False,
+                )
+
+        with FormRow():
+            w.ad_restore_face = gr.Checkbox(
+                value=False,
+                label="Restore Faces after ADetailer",
                 elem_id=eid("ad_restore_face"),
+            )
+
+            w.ad_denoising_strength = gr.Slider(
+                label="Inpaint Denoising Strength",
+                minimum=0.0,
+                maximum=1.0,
+                step=0.05,
+                value=0.5,
+                elem_id=eid("ad_denoising_strength"),
             )
 
 
