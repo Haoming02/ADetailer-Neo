@@ -1,3 +1,4 @@
+from ast import literal_eval
 from dataclasses import dataclass
 from functools import partial
 from types import SimpleNamespace
@@ -199,7 +200,18 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
     target_button = webui_info.i2i_button if is_img2img else webui_info.t2i_button
     target_button.click(fn=on_generate, inputs=all_inputs, outputs=state, queue=False)
 
-    infotext_fields = [(getattr(w, attr), name + suffix(n)) for attr, name in ALL_ARGS]
+    infotext_fields: list[tuple[str, str]] = []
+
+    def _parse(d: dict):
+        v = d.get("ADetailer ControlNet guidance start/end" + suffix(n), None)
+        return gr.skip() if v is None else gr.update(value=literal_eval(v))
+
+    for attr, name in ALL_ARGS:
+        if name == "ADetailer ControlNet guidance start/end":
+            infotext_fields.append((getattr(w, attr), _parse))
+        else:
+            infotext_fields.append((getattr(w, attr), name + suffix(n)))
+
     return state, infotext_fields
 
 

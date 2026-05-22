@@ -10,8 +10,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    NonNegativeFloat,
     NonNegativeInt,
+    PositiveFloat,
     PositiveInt,
     field_validator,
 )
@@ -65,15 +65,15 @@ class ADetailerArgs(BaseModel):
     ad_inpaint_width: PositiveInt = 512
     ad_inpaint_height: PositiveInt = 512
     ad_use_steps: bool = False
-    ad_steps: PositiveInt = 28
+    ad_steps: PositiveInt = Field(default=20, ge=1, le=150)
     ad_use_cfg_scale: bool = False
-    ad_cfg_scale: NonNegativeFloat = 7.0
+    ad_cfg_scale: PositiveFloat = Field(default=4.0, ge=1.0, le=24.0)
     ad_use_checkpoint: bool = False
     ad_checkpoint: Optional[str] = None
     ad_use_vae: bool = False
     ad_vae: Optional[str] = None
     ad_use_sampler: bool = False
-    ad_sampler: str = "DPM++ 2M Karras"
+    ad_sampler: str = "Use same sampler"
     ad_scheduler: str = "Use same scheduler"
     ad_use_noise_multiplier: bool = False
     ad_noise_multiplier: float = Field(default=1.0, ge=0.5, le=1.5)
@@ -87,49 +87,58 @@ class ADetailerArgs(BaseModel):
     @field_validator("is_api", mode="before")
     @classmethod
     def is_api_validator(cls, v: Any):
-        "tuple is json serializable but cannot be made with json deserialize."
         return type(v) is not tuple
 
     @staticmethod
-    def ppop(
-        p: dict[str, Any],
+    def pop_param(
         key: str,
-        pops: list[str] | None = None,
-        cond: Any = None,
-    ) -> None:
-        if pops is None:
-            pops = [key]
-        if key not in p:
+        pops: list[str] = None,
+        condition: Any = None,
+        *,
+        params: dict[str, Any],
+    ):
+        if key not in params:
             return
-        value = p[key]
-        cond = (not bool(value)) if cond is None else value == cond
 
-        if cond:
+        value = params[key]
+        condition = (not bool(value)) if condition is None else value == condition
+
+        if condition:
+            if pops is None:
+                pops = [key]
             for k in pops:
-                p.pop(k, None)
+                params.pop(k, None)
 
     def extra_params(self, suffix: str = "") -> dict[str, Any]:
         if self.need_skip():
             return {}
 
         p = {name: getattr(self, attr) for attr, name in ALL_ARGS}
-        ppop = partial(self.ppop, p)
+        p.pop("ADetailer tab enable", None)
+
+        ppop = partial(self.pop_param, params=p)
+        _CNET_GSE = "ADetailer ControlNet guidance start/end"
 
         ppop("ADetailer model classes")
         ppop("ADetailer prompt")
         ppop("ADetailer negative prompt")
-        p.pop("ADetailer tab enable", None)  # always pop
         ppop(
             "ADetailer mask only top k",
-            ["ADetailer mask only top k", "ADetailer method to decide top k masks"],
-            cond=0,
+            [
+                "ADetailer mask only top k",
+                "ADetailer method to decide top k masks",
+            ],
+            condition=0,
         )
-        ppop("ADetailer mask min ratio", cond=0.0)
-        ppop("ADetailer mask max ratio", cond=1.0)
-        ppop("ADetailer x offset", cond=0)
-        ppop("ADetailer y offset", cond=0)
-        ppop("ADetailer mask merge invert", cond="None")
-        ppop("ADetailer inpaint only masked", ["ADetailer inpaint padding"])
+        ppop("ADetailer mask min ratio", condition=0.0)
+        ppop("ADetailer mask max ratio", condition=1.0)
+        ppop("ADetailer x offset", condition=0)
+        ppop("ADetailer y offset", condition=0)
+        ppop("ADetailer mask merge invert", condition="None")
+        ppop(
+            "ADetailer inpaint only masked",
+            ["ADetailer inpaint padding"],
+        )
         ppop(
             "ADetailer use inpaint width height",
             [
@@ -140,19 +149,31 @@ class ADetailerArgs(BaseModel):
         )
         ppop(
             "ADetailer use separate steps",
-            ["ADetailer use separate steps", "ADetailer steps"],
+            [
+                "ADetailer use separate steps",
+                "ADetailer steps",
+            ],
         )
         ppop(
             "ADetailer use separate CFG scale",
-            ["ADetailer use separate CFG scale", "ADetailer CFG scale"],
+            [
+                "ADetailer use separate CFG scale",
+                "ADetailer CFG scale",
+            ],
         )
         ppop(
             "ADetailer use separate checkpoint",
-            ["ADetailer use separate checkpoint", "ADetailer checkpoint"],
+            [
+                "ADetailer use separate checkpoint",
+                "ADetailer checkpoint",
+            ],
         )
         ppop(
             "ADetailer use separate VAE",
-            ["ADetailer use separate VAE", "ADetailer VAE"],
+            [
+                "ADetailer use separate VAE",
+                "ADetailer VAE",
+            ],
         )
         ppop(
             "ADetailer use separate sampler",
@@ -162,17 +183,15 @@ class ADetailerArgs(BaseModel):
                 "ADetailer scheduler",
             ],
         )
-        ppop("ADetailer scheduler", cond="Use same scheduler")
+        ppop("ADetailer sampler", condition="Use same sampler")
+        ppop("ADetailer scheduler", condition="Use same scheduler")
         ppop(
             "ADetailer use separate noise multiplier",
-            ["ADetailer use separate noise multiplier", "ADetailer noise multiplier"],
+            [
+                "ADetailer use separate noise multiplier",
+                "ADetailer noise multiplier",
+            ],
         )
-
-        ppop(
-            "ADetailer use separate CLIP skip",
-            ["ADetailer use separate CLIP skip", "ADetailer CLIP skip"],
-        )
-
         ppop("ADetailer restore face")
         ppop(
             "ADetailer ControlNet model",
@@ -180,15 +199,16 @@ class ADetailerArgs(BaseModel):
                 "ADetailer ControlNet model",
                 "ADetailer ControlNet module",
                 "ADetailer ControlNet weight",
-                "ADetailer ControlNet guidance start",
-                "ADetailer ControlNet guidance end",
+                _CNET_GSE,
             ],
-            cond="None",
+            condition="None",
         )
-        ppop("ADetailer ControlNet module", cond="None")
-        ppop("ADetailer ControlNet weight", cond=1.0)
-        ppop("ADetailer ControlNet guidance start", cond=0.0)
-        ppop("ADetailer ControlNet guidance end", cond=1.0)
+        ppop("ADetailer ControlNet module", condition="None")
+        ppop("ADetailer ControlNet weight", condition=1.0)
+        ppop(_CNET_GSE, condition=(0.0, 1.0))
+
+        if _CNET_GSE in p:
+            p[_CNET_GSE] = str(p.pop(_CNET_GSE))
 
         if suffix:
             p = {k + suffix: v for k, v in p.items()}
