@@ -81,8 +81,7 @@ class ADetailerArgs(BaseModel):
     ad_controlnet_model: str = "None"
     ad_controlnet_module: str = "None"
     ad_controlnet_weight: float = Field(default=1.0, ge=0.0, le=1.0)
-    ad_controlnet_guidance_start: float = Field(default=0.0, ge=0.0, le=1.0)
-    ad_controlnet_guidance_end: float = Field(default=1.0, ge=0.0, le=1.0)
+    ad_controlnet_guidance_start_end: tuple[float, float] = Field(default=(0.0, 1.0))
     is_api: bool = True
 
     @field_validator("is_api", mode="before")
@@ -242,8 +241,7 @@ _all_args = [
     ("ad_controlnet_model", "ADetailer ControlNet model"),
     ("ad_controlnet_module", "ADetailer ControlNet module"),
     ("ad_controlnet_weight", "ADetailer ControlNet weight"),
-    ("ad_controlnet_guidance_start", "ADetailer ControlNet guidance start"),
-    ("ad_controlnet_guidance_end", "ADetailer ControlNet guidance end"),
+    ("ad_controlnet_guidance_start_end", "ADetailer ControlNet guidance start/end"),
 ]
 
 _args = [Arg(*args) for args in _all_args]

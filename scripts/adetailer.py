@@ -135,8 +135,8 @@ class AfterDetailerScript(scripts.Script):
                 model=args.ad_controlnet_model,
                 module=args.ad_controlnet_module,
                 weight=args.ad_controlnet_weight,
-                guidance_start=args.ad_controlnet_guidance_start,
-                guidance_end=args.ad_controlnet_guidance_end,
+                guidance_start=args.ad_controlnet_guidance_start_end[0],
+                guidance_end=args.ad_controlnet_guidance_start_end[1],
             )
 
     def is_ad_enabled(self, *args) -> bool:
@@ -150,7 +150,8 @@ class AfterDetailerScript(scripts.Script):
         for arg in arg_list:
             try:
                 adarg = ADetailerArgs(**arg)
-            except ValueError:
+            except ValueError as e:
+                errors.display(e, "args")
                 continue
             else:
                 if not adarg.need_skip():

@@ -1,30 +1,17 @@
 from dataclasses import dataclass
 from functools import partial
-from itertools import chain
 from types import SimpleNamespace
 from typing import Any
 
 import gradio as gr
-from lib_controlnet import global_state
+from gradio_rangeslider import RangeSlider
 
 from modules.launch_utils import is_installed
-from modules.ui_components import InputAccordion
+from modules.ui_components import FormColumn, FormRow, InputAccordion
 
 from . import __version__
 from .args import ALL_ARGS, MASK_MERGE_INVERT
-from .controlnet import get_cn_models
-
-cn_module_choices = {
-    "inpaint": list(global_state.get_filtered_preprocessors("Inpaint")),
-    "lineart": list(global_state.get_filtered_preprocessors("Lineart")),
-    "openpose": list(global_state.get_filtered_preprocessors("OpenPose")),
-    "tile": list(global_state.get_filtered_preprocessors("Tile")),
-    "scribble": list(global_state.get_filtered_preprocessors("Scribble")),
-    "depth": list(global_state.get_filtered_preprocessors("Depth")),
-}
-
-_union = set(chain.from_iterable(cn_module_choices.values()))
-cn_module_choices["union"] = sorted(_union)
+from .controlnet import get_cn_models, get_cn_modules
 
 
 class Widgets(SimpleNamespace):
@@ -41,6 +28,9 @@ class WebuiInfo:
     i2i_button: gr.Button
     checkpoints_list: list[str]
     vae_list: list[str]
+
+
+# region Utils
 
 
 def gr_interactive(value: bool = True):
@@ -64,29 +54,16 @@ def on_widget_change(state: dict, value: Any, *, attr: str):
     return state
 
 
-def on_generate_click(state: dict, *values: Any):
+def on_generate(state: dict, *values: Any):
     for attr, value in zip(ALL_ARGS.attrs, values):
         state[attr] = value
     state["is_api"] = ()
     return state
 
 
-def on_ad_model_update(model: str):
-    return gr.update(visible="-world" in model)
-
-
-def on_cn_model_update(cn_model_name: str):
-    cn_model_name = cn_model_name.replace("inpaint_depth", "depth")
-    for t in cn_module_choices:
-        if t in cn_model_name:
-            choices = cn_module_choices[t]
-            return gr.update(visible=True, choices=choices, value=choices[0])
-    return gr.update(visible=False, choices=["None"], value="None")
-
-
 def elem_id(item_id: str, n: int, is_img2img: bool) -> str:
     tab = "img2img" if is_img2img else "txt2img"
-    suf = suffix(n, "_")
+    suf = "" if n is None else suffix(n, "_")
     return f"script_{tab}_adetailer_{item_id}{suf}"
 
 
@@ -94,31 +71,26 @@ def state_init(w: Widgets) -> dict[str, Any]:
     return {attr: getattr(w, attr).value for attr in ALL_ARGS.attrs}
 
 
-def adui(
-    num_models: int,
-    is_img2img: bool,
-    webui_info: WebuiInfo,
-):
+# region UI
+
+
+def adui(num_models: int, is_img2img: bool, webui_info: WebuiInfo):
     states = []
     infotext_fields = []
-    eid = partial(elem_id, n=0, is_img2img=is_img2img)
+    eid = partial(elem_id, n=None, is_img2img=is_img2img)
 
     with InputAccordion(
-        value=False,
-        elem_id=eid("ad_main_accordion"),
-        label="ADetailer",
-        visible=True,
+        value=False, label="ADetailer", elem_id=eid("ad_main_accordion")
     ) as ad_enable:
         with gr.Row():
-            with gr.Column(scale=8):
+            with gr.Column(scale=10):
                 ad_skip_img2img = gr.Checkbox(
-                    label="Skip img2img",
                     value=False,
+                    label="Skip img2img",
                     visible=is_img2img,
                     elem_id=eid("ad_skip_img2img"),
                 )
-
-            with gr.Column(scale=1, min_width=180):
+            with gr.Column(scale=1, min_width=80):
                 gr.Markdown(
                     f"ver. {__version__}",
                     elem_id=eid("ad_version"),
@@ -127,10 +99,10 @@ def adui(
         infotext_fields.append((ad_enable, "ADetailer enable"))
         infotext_fields.append((ad_skip_img2img, "ADetailer skip img2img"))
 
-        with gr.Group(), gr.Tabs():
+        with gr.Tabs():
             for n in range(num_models):
-                with gr.Tab(ordinal(n + 1)):
-                    state, infofields = one_ui_group(
+                with gr.Tab(label=ordinal(n + 1)):
+                    state, infofields = _ui_group(
                         n=n,
                         is_img2img=is_img2img,
                         webui_info=webui_info,
@@ -139,111 +111,82 @@ def adui(
                 states.append(state)
                 infotext_fields.extend(infofields)
 
-    # components: [bool, bool, dict, dict, ...]
     components = [ad_enable, ad_skip_img2img, *states]
     return components, infotext_fields
 
 
-def one_ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
+def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
     w = Widgets()
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
-    model_choices = (
-        [*webui_info.ad_model_list, "None"]
-        if n == 0
-        else ["None", *webui_info.ad_model_list]
+    w.ad_tab_enable = gr.Checkbox(
+        value=(n == 0),
+        label=f"Enable {ordinal(n + 1)} Tab",
+        elem_id=eid("ad_tab_enable"),
     )
 
-    with gr.Group():
-        with gr.Row(variant="compact"):
-            w.ad_tab_enable = gr.Checkbox(
-                label=f"Enable this tab ({ordinal(n + 1)})",
-                value=True,
-                visible=True,
-                elem_id=eid("ad_tab_enable"),
-            )
+    with FormColumn():
+        w.ad_model = gr.Dropdown(
+            label="ADetailer Detector" + suffix(n),
+            choices=["None", *webui_info.ad_model_list],
+            value="None",
+            type="value",
+            elem_id=eid("ad_model"),
+        )
+        w.ad_model_classes = gr.Textbox(
+            label="Detector Classes" + suffix(n),
+            value="",
+            visible=False,
+            interactive=is_installed("clip"),
+            placeholder=(
+                'Comma-separated class names to detect (e.g. "person,cat" ; default: COCO 80 classes)'
+                if is_installed("clip")
+                else "Detector Classes require Clip to be installed (https://github.com/ultralytics/CLIP.git)"
+            ),
+            lines=1,
+            max_lines=1,
+            elem_id=eid("ad_model_classes"),
+        )
 
-        with gr.Row():
-            w.ad_model = gr.Dropdown(
-                label="ADetailer detector" + suffix(n),
-                choices=model_choices,
-                value=model_choices[0],
-                visible=True,
-                type="value",
-                elem_id=eid("ad_model"),
-                info="Select a model to use for detection.",
-            )
+        w.ad_model.change(
+            fn=lambda model: gr.update(visible="-world" in model),
+            inputs=[w.ad_model],
+            outputs=[w.ad_model_classes],
+            queue=False,
+            show_progress=False,
+        )
 
-        with gr.Row():
-            w.ad_model_classes = gr.Textbox(
-                label="ADetailer detector classes" + suffix(n),
-                value="",
-                visible=False,
-                interactive=is_installed("clip"),
-                placeholder=(
-                    'Comma-separated class names to detect (e.g. "person,cat" ; default: COCO 80 classes)'
-                    if is_installed("clip")
-                    else "Detector Classes require Clip to be installed (https://github.com/ultralytics/CLIP.git)"
-                ),
-                lines=1,
-                max_lines=1,
-                elem_id=eid("ad_model_classes"),
-            )
+        with FormColumn():
+            with gr.Row(elem_id=eid("ad_toprow_prompt")):
+                w.ad_prompt = gr.Textbox(
+                    value="",
+                    show_label=False,
+                    lines=3,
+                    max_lines=6,
+                    placeholder=f"ADetailer Prompt{suffix(n)}"
+                    + "\n(if blank, the original prompt is used)",
+                    elem_id=eid("ad_prompt"),
+                )
+            with gr.Row(elem_id=eid("ad_toprow_negative_prompt")):
+                w.ad_negative_prompt = gr.Textbox(
+                    value="",
+                    show_label=False,
+                    lines=3,
+                    max_lines=6,
+                    placeholder=f"ADetailer Negative Prompt{suffix(n)}"
+                    + "\n(if blank, the original negative prompt is used)",
+                    elem_id=eid("ad_negative_prompt"),
+                )
 
-            w.ad_model.change(
-                on_ad_model_update,
-                inputs=w.ad_model,
-                outputs=w.ad_model_classes,
-                queue=False,
-            )
-
-    gr.HTML("<br>")
-
-    with gr.Group():
-        with gr.Row(elem_id=eid("ad_toprow_prompt")):
-            w.ad_prompt = gr.Textbox(
-                value="",
-                label="ad_prompt" + suffix(n),
-                show_label=False,
-                lines=3,
-                placeholder="ADetailer prompt"
-                + suffix(n)
-                + "\nIf blank, the main prompt is used.",
-                elem_id=eid("ad_prompt"),
-            )
-
-        with gr.Row(elem_id=eid("ad_toprow_negative_prompt")):
-            w.ad_negative_prompt = gr.Textbox(
-                value="",
-                label="ad_negative_prompt" + suffix(n),
-                show_label=False,
-                lines=2,
-                placeholder="ADetailer negative prompt"
-                + suffix(n)
-                + "\nIf blank, the main negative prompt is used.",
-                elem_id=eid("ad_negative_prompt"),
-            )
-
-    with gr.Group():
-        with gr.Accordion(
-            "Detection", open=False, elem_id=eid("ad_detection_accordion")
-        ):
+    with gr.Column(variant="compact"):
+        with gr.Accordion("Detection", open=False):
             detection(w, n, is_img2img)
-
-        with gr.Accordion(
-            "Mask Preprocessing",
-            open=False,
-            elem_id=eid("ad_mask_preprocessing_accordion"),
-        ):
+        with gr.Accordion("Mask Preprocessing", open=False):
             mask_preprocessing(w, n, is_img2img)
-
-        with gr.Accordion(
-            "Inpainting", open=False, elem_id=eid("ad_inpainting_accordion")
-        ):
+        with gr.Accordion("Inpaint Parameters", open=False):
             inpainting(w, n, is_img2img, webui_info)
-
-    with gr.Group():
-        controlnet(w, n, is_img2img)
+        with gr.Accordion("ControlNet", open=False):
+            controlnet(w, n, is_img2img)
 
     state = gr.State(lambda: state_init(w))
 
@@ -254,114 +197,103 @@ def one_ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
 
     all_inputs = [state, *w.tolist()]
     target_button = webui_info.i2i_button if is_img2img else webui_info.t2i_button
-    target_button.click(
-        fn=on_generate_click, inputs=all_inputs, outputs=state, queue=False
-    )
+    target_button.click(fn=on_generate, inputs=all_inputs, outputs=state, queue=False)
 
     infotext_fields = [(getattr(w, attr), name + suffix(n)) for attr, name in ALL_ARGS]
-
     return state, infotext_fields
+
+
+# region SubGroups
 
 
 def detection(w: Widgets, n: int, is_img2img: bool):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
-    with gr.Row():
-        with gr.Column(variant="compact"):
-            w.ad_confidence = gr.Slider(
-                label="Detection model confidence threshold" + suffix(n),
+    with FormColumn():
+        w.ad_confidence = gr.Slider(
+            label="Confidence Threshold",
+            minimum=0.0,
+            maximum=1.0,
+            step=0.05,
+            value=0.3,
+            elem_id=eid("ad_confidence"),
+        )
+
+        with FormRow():
+            w.ad_mask_min_ratio = gr.Slider(
+                label="Min Area Ratio",
                 minimum=0.0,
                 maximum=1.0,
-                step=0.01,
-                value=0.3,
-                visible=True,
-                elem_id=eid("ad_confidence"),
+                step=0.05,
+                value=0.0,
+                elem_id=eid("ad_mask_min_ratio"),
             )
-            w.ad_mask_filter_method = gr.Radio(
-                choices=["Area", "Confidence"],
-                value="Area",
-                label="Method to filter top k masks by (confidence or area)"
-                + suffix(n),
-                visible=True,
-                elem_id=eid("ad_mask_filter_method"),
+            w.ad_mask_max_ratio = gr.Slider(
+                label="Max Area Ratio",
+                minimum=0.0,
+                maximum=1.0,
+                step=0.05,
+                value=1.0,
+                elem_id=eid("ad_mask_max_ratio"),
             )
+
+        with FormRow():
             w.ad_mask_k = gr.Slider(
-                label="Mask only the top k (0 to disable)" + suffix(n),
+                label="Keep only the top n masks",
+                info="0 for unlimited",
                 minimum=0,
                 maximum=10,
                 step=1,
                 value=0,
-                visible=True,
                 elem_id=eid("ad_mask_k"),
             )
-
-        with gr.Column(variant="compact"):
-            w.ad_mask_min_ratio = gr.Slider(
-                label="Mask min area ratio" + suffix(n),
-                minimum=0.0,
-                maximum=1.0,
-                step=0.001,
-                value=0.0,
-                visible=True,
-                elem_id=eid("ad_mask_min_ratio"),
-            )
-            w.ad_mask_max_ratio = gr.Slider(
-                label="Mask max area ratio" + suffix(n),
-                minimum=0.0,
-                maximum=1.0,
-                step=0.001,
-                value=1.0,
-                visible=True,
-                elem_id=eid("ad_mask_max_ratio"),
+            w.ad_mask_filter_method = gr.Radio(
+                label="Filter Method",
+                choices=("Area", "Confidence"),
+                value="Area",
+                elem_id=eid("ad_mask_filter_method"),
             )
 
 
 def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
-    with gr.Group():
-        with gr.Row():
-            with gr.Column(variant="compact"):
-                w.ad_x_offset = gr.Slider(
-                    label="Mask x(→) offset" + suffix(n),
-                    minimum=-200,
-                    maximum=200,
-                    step=1,
-                    value=0,
-                    visible=True,
-                    elem_id=eid("ad_x_offset"),
-                )
-                w.ad_y_offset = gr.Slider(
-                    label="Mask y(↑) offset" + suffix(n),
-                    minimum=-200,
-                    maximum=200,
-                    step=1,
-                    value=0,
-                    visible=True,
-                    elem_id=eid("ad_y_offset"),
-                )
-
-            with gr.Column(variant="compact"):
-                w.ad_dilate_erode = gr.Slider(
-                    label="Mask erosion (-) / dilation (+)" + suffix(n),
-                    minimum=-128,
-                    maximum=128,
-                    step=4,
-                    value=4,
-                    visible=True,
-                    elem_id=eid("ad_dilate_erode"),
-                )
-
-        with gr.Row():
-            w.ad_mask_merge_invert = gr.Radio(
-                label="Mask merge mode" + suffix(n),
-                choices=MASK_MERGE_INVERT,
-                value="None",
-                elem_id=eid("ad_mask_merge_invert"),
-                info="None: do nothing, Merge: merge masks, Merge and Invert: merge all masks and invert",
+    with FormColumn():
+        with FormRow():
+            w.ad_x_offset = gr.Slider(
+                label="Offset: Right (+) / Left(-)",
+                minimum=-256,
+                maximum=256,
+                step=4,
+                value=0,
+                elem_id=eid("ad_x_offset"),
+            )
+            w.ad_y_offset = gr.Slider(
+                label="Offset: Up (+) / Down (-)",
+                minimum=-256,
+                maximum=256,
+                step=4,
+                value=0,
+                elem_id=eid("ad_y_offset"),
+            )
+            w.ad_dilate_erode = gr.Slider(
+                label="Mask: Dilation (+) / Erosion (-)",
+                minimum=-256,
+                maximum=256,
+                step=4,
+                value=4,
+                elem_id=eid("ad_dilate_erode"),
             )
 
+        w.ad_mask_merge_invert = gr.Radio(
+            label="Masks Merge Mode",
+            choices=MASK_MERGE_INVERT,
+            value="None",
+            elem_id=eid("ad_mask_merge_invert"),
+        )
 
+
+# TODO
 def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
 
@@ -612,67 +544,38 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
 
 def controlnet(w: Widgets, n: int, is_img2img: bool):
     eid = partial(elem_id, n=n, is_img2img=is_img2img)
-    cn_models = ["None", "Passthrough", *get_cn_models()]
 
-    with gr.Row(variant="panel"):
-        with gr.Column(variant="compact"):
-            w.ad_controlnet_model = gr.Dropdown(
-                label="ControlNet model" + suffix(n),
-                choices=cn_models,
+    with FormColumn():
+        with FormRow():
+            w.ad_controlnet_module = gr.Dropdown(
+                label="ControlNet Module",
+                choices=get_cn_modules(),
                 value="None",
-                visible=True,
                 type="value",
-                interactive=True,
+                elem_id=eid("ad_controlnet_module"),
+            )
+            w.ad_controlnet_model = gr.Dropdown(
+                label="ControlNet Model",
+                choices=get_cn_models(),
+                value="None",
+                type="value",
                 elem_id=eid("ad_controlnet_model"),
             )
 
-            w.ad_controlnet_module = gr.Dropdown(
-                label="ControlNet module" + suffix(n),
-                choices=["None"],
-                value="None",
-                visible=False,
-                type="value",
-                interactive=True,
-                elem_id=eid("ad_controlnet_module"),
-            )
-
+        with FormRow():
             w.ad_controlnet_weight = gr.Slider(
-                label="ControlNet weight" + suffix(n),
+                label="ControlNet Weight",
                 minimum=0.0,
                 maximum=1.0,
-                step=0.01,
+                step=0.05,
                 value=1.0,
-                visible=True,
-                interactive=True,
                 elem_id=eid("ad_controlnet_weight"),
             )
-
-            w.ad_controlnet_model.change(
-                on_cn_model_update,
-                inputs=w.ad_controlnet_model,
-                outputs=w.ad_controlnet_module,
-                queue=False,
-            )
-
-        with gr.Column(variant="compact"):
-            w.ad_controlnet_guidance_start = gr.Slider(
-                label="ControlNet guidance start" + suffix(n),
+            w.ad_controlnet_guidance_start_end = RangeSlider(
+                label="ControlNet Guidance Start/End",
                 minimum=0.0,
                 maximum=1.0,
-                step=0.01,
-                value=0.0,
-                visible=True,
-                interactive=True,
-                elem_id=eid("ad_controlnet_guidance_start"),
-            )
-
-            w.ad_controlnet_guidance_end = gr.Slider(
-                label="ControlNet guidance end" + suffix(n),
-                minimum=0.0,
-                maximum=1.0,
-                step=0.01,
-                value=1.0,
-                visible=True,
-                interactive=True,
-                elem_id=eid("ad_controlnet_guidance_end"),
+                step=0.05,
+                value=(0.0, 1.0),
+                elem_id=eid("ad_controlnet_guidance_start_end"),
             )

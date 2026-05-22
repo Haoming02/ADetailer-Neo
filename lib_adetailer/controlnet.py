@@ -1,5 +1,5 @@
 import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from modules.processing import StableDiffusionProcessingImg2Img
@@ -9,6 +9,15 @@ from lib_controlnet import external_code, global_state
 from lib_controlnet.external_code import ControlNetUnit
 
 from modules import scripts
+
+SUPPORTED_TYPES: Final[tuple[str]] = (
+    "Inpaint",
+    "Scribble",
+    "Lineart",
+    "OpenPose",
+    "Tile",
+    "Depth",
+)
 
 
 def find_script(p: "StableDiffusionProcessingImg2Img", script: str) -> scripts.Script:
@@ -82,9 +91,18 @@ class ControlNetExt:
 
 
 def get_cn_models() -> list[str]:
-    models: list[str] = []
-    for mod in ("Inpaint", "Scribble", "Lineart", "OpenPose", "Tile", "Depth"):
-        models.extend(global_state.get_filtered_controlnet_names(mod))
-    models: list[str] = sorted(set(models))
+    models = set()
+    for mod in SUPPORTED_TYPES:
+        models.update(global_state.get_filtered_controlnet_names(mod))
     models.remove("None")
-    return models
+
+    return ["None", "Passthrough", *sorted(models)]
+
+
+def get_cn_modules() -> list[str]:
+    modules = set()
+    for mod in SUPPORTED_TYPES:
+        modules.update(global_state.get_filtered_preprocessors(mod))
+    modules.remove("None")
+
+    return ["None", *sorted(modules)]
