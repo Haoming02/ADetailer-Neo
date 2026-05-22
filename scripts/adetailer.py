@@ -7,10 +7,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI
+
     from modules.processing import StableDiffusionProcessingImg2Img as P
 
 import gradio as gr
-from fastapi import FastAPI
 from lib_adetailer import (
     PredictOutput,
     __version__,
@@ -190,8 +191,8 @@ class AfterDetailerScript(scripts.Script):
         )
         p.steps = 1
         p.sampler_name = "Euler"
-        p.width = 128
-        p.height = 128
+        p.width = 64
+        p.height = 64
 
     def get_args(self, p: "P", *_args) -> list[ADetailerArgs]:
         args = [arg for arg in _args if isinstance(arg, dict)]
@@ -330,16 +331,11 @@ class AfterDetailerScript(scripts.Script):
             return p._ad_orig.sampler_name
         return p.sampler_name
 
-    def get_scheduler(self, p: "P", args: ADetailerArgs) -> dict[str, str]:
-        if not args.ad_use_sampler:
-            return {"scheduler": getattr(p, "scheduler", "Automatic")}
+    def get_scheduler(self, p: "P", args: ADetailerArgs) -> str:
+        if (not args.ad_use_sampler) or args.ad_scheduler == "Use same scheduler":
+            return getattr(p, "scheduler", "Automatic")
 
-        if args.ad_scheduler == "Use same scheduler":
-            value = getattr(p, "scheduler", "Automatic")
-        else:
-            value = args.ad_scheduler
-
-        return {"scheduler": value}
+        return args.ad_scheduler
 
     def get_override_settings(self, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
@@ -424,6 +420,7 @@ class AfterDetailerScript(scripts.Script):
         cfg_scale = self.get_cfg_scale(p, args)
         initial_noise_multiplier = self.get_initial_noise_multiplier(args)
         sampler_name = self.get_sampler(p, args)
+        scheduler = self.get_scheduler(p, args)
         override_settings = self.get_override_settings(args)
 
         i2i = StableDiffusionProcessingImg2Img(
@@ -449,7 +446,7 @@ class AfterDetailerScript(scripts.Script):
             seed_resize_from_h=p.seed_resize_from_h,
             seed_resize_from_w=p.seed_resize_from_w,
             sampler_name=sampler_name,
-            **self.get_scheduler(p, args),
+            scheduler=scheduler,
             batch_size=1,
             n_iter=1,
             steps=steps,
@@ -647,7 +644,6 @@ class AfterDetailerScript(scripts.Script):
         p2.cached_c = [None, None]
         p2.cached_uc = [None, None]
 
-        # Don't override user-defined dimensions.
         if not args.ad_use_inpaint_width_height:
             p2.width, p2.height = self.get_optimal_crop_image_size(
                 p2.width, p2.height, pred.bboxes[j]
@@ -668,17 +664,14 @@ class AfterDetailerScript(scripts.Script):
 
         self.set_skip_img2img(p, *args)
         if getattr(p, "_ad_disabled", False):
-            # case when img2img inpainting with skip img2img
             return
 
         arg_list = self.get_args(p, *args)
 
         if hasattr(p, "_ad_xyz_prompt_sr"):
-            replaced_positive_prompt, replaced_negative_prompt = self.get_prompt(
-                p, arg_list[0]
-            )
-            arg_list[0].ad_prompt = replaced_positive_prompt[0]
-            arg_list[0].ad_negative_prompt = replaced_negative_prompt[0]
+            replaced_positive, replaced_negative = self.get_prompt(p, arg_list[0])
+            arg_list[0].ad_prompt = replaced_positive[0]
+            arg_list[0].ad_negative_prompt = replaced_negative[0]
 
         extra_params = self.extra_params(arg_list)
         p.extra_generation_params.update(extra_params)
