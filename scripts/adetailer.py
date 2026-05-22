@@ -936,14 +936,14 @@ class PromptSR(NamedTuple):
     r: str
 
 
-def set_value(p, x: Any, xs: Any, *, field: str):
+def set_value(p: "P", x: Any, xs: list[Any], *, field: str):
     if not hasattr(p, "_ad_xyz"):
         p._ad_xyz = {}
     p._ad_xyz[field] = x
 
 
-def search_and_replace_prompt(p, x: Any, xs: Any, replace_in_main_prompt: bool):
-    if replace_in_main_prompt:
+def search_and_replace_prompt(p: "P", x: str, xs: list[str], *, replace_main: bool):
+    if replace_main:
         p.prompt = p.prompt.replace(xs[0], x)
         p.negative_prompt = p.negative_prompt.replace(xs[0], x)
 
@@ -952,14 +952,20 @@ def search_and_replace_prompt(p, x: Any, xs: Any, replace_in_main_prompt: bool):
     p._ad_xyz_prompt_sr.append(PromptSR(s=xs[0], r=x))
 
 
-def make_axis_on_xyz_grid():
-    xyz_grid = None
-    for script in scripts.scripts_data:
-        if script.script_class.__module__ == "xyz_grid.py":
-            xyz_grid = script.module
-            break
+def _grid_reference():
+    for data in scripts.scripts_data:
+        if data.script_class.__module__ in (
+            "scripts.xyz_grid",
+            "xyz_grid.py",
+        ) and hasattr(data, "module"):
+            return data.module
 
-    if xyz_grid is None:
+    raise SystemError("Could not find X/Y/Z Plot...")
+
+
+def make_axis_on_xyz_grid():
+    xyz_grid = _grid_reference()
+    if any(x.label.startswith("[ADetailer]") for x in xyz_grid.axis_options):
         return
 
     model_list = ["None", *model_mapping.keys()]
@@ -968,84 +974,83 @@ def make_axis_on_xyz_grid():
 
     axis = [
         xyz_grid.AxisOption(
-            "[ADetailer] ADetailer model 1st",
+            "[ADetailer] ADetailer Detector",
             str,
             partial(set_value, field="ad_model"),
             choices=lambda: model_list,
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] ADetailer prompt 1st",
+            "[ADetailer] ADetailer Prompt",
             str,
             partial(set_value, field="ad_prompt"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] ADetailer negative prompt 1st",
+            "[ADetailer] ADetailer Negative Prompt",
             str,
             partial(set_value, field="ad_negative_prompt"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Prompt S/R (AD 1st)",
+            "[ADetailer] Prompt S/R",
             str,
-            partial(search_and_replace_prompt, replace_in_main_prompt=False),
+            partial(search_and_replace_prompt, replace_main=False),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Prompt S/R (AD 1st and main prompt)",
+            "[ADetailer] Prompt S/R (+ main prompt)",
             str,
-            partial(search_and_replace_prompt, replace_in_main_prompt=True),
+            partial(search_and_replace_prompt, replace_main=True),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Mask erosion / dilation 1st",
+            "[ADetailer] Mask Dilation / Erosion",
             int,
             partial(set_value, field="ad_dilate_erode"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Inpaint denoising strength 1st",
+            "[ADetailer] Inpaint Denoising Strength",
             float,
             partial(set_value, field="ad_denoising_strength"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] CFG scale 1st",
+            "[ADetailer] CFG Scale",
             float,
             partial(set_value, field="ad_cfg_scale"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Inpaint only masked 1st",
+            "[ADetailer] Inpaint Only Masked",
             str,
             partial(set_value, field="ad_inpaint_only_masked"),
             choices=lambda: ["True", "False"],
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] Inpaint only masked padding 1st",
+            "[ADetailer] Inpaint Only masked padding",
             int,
             partial(set_value, field="ad_inpaint_only_masked_padding"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] ADetailer sampler 1st",
+            "[ADetailer] ADetailer Sampler",
             str,
             partial(set_value, field="ad_sampler"),
             choices=lambda: xyz_samplers,
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] ADetailer scheduler 1st",
+            "[ADetailer] ADetailer Scheduler",
             str,
             partial(set_value, field="ad_scheduler"),
             choices=lambda: xyz_schedulers,
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] noise multiplier 1st",
+            "[ADetailer] Noise Multiplier",
             float,
             partial(set_value, field="ad_noise_multiplier"),
         ),
         xyz_grid.AxisOption(
-            "[ADetailer] ControlNet model 1st",
+            "[ADetailer] ControlNet Model",
             str,
             partial(set_value, field="ad_controlnet_model"),
-            choices=lambda: ["None", "Passthrough", *get_cn_models()],
+            choices=lambda: get_cn_models(),
         ),
     ]
 
-    if not any(x.label.startswith("[ADetailer]") for x in xyz_grid.axis_options):
-        xyz_grid.axis_options.extend(axis)
+    xyz_grid.axis_options.extend(axis)
 
 
 def on_before_ui():
