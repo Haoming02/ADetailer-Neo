@@ -76,6 +76,7 @@ def get_models(ad_dir: str, *extra_dirs: str) -> dict[str, os.PathLike]:
     }
 
     if not no_huggingface:
+        print("Loading Models...")
         _download(ad_dir, TO_DOWNLOAD)
 
     models: dict[str, os.PathLike] = {}

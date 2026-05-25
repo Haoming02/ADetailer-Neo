@@ -190,6 +190,7 @@ class AfterDetailerScript(scripts.Script):
             height=p.height,
         )
         p.steps = 1
+        p.denoising_strength = 0.0
         p.sampler_name = "Euler"
         p.width = 64
         p.height = 64
