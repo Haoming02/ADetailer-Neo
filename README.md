@@ -1,10 +1,13 @@
 # ADetailer Neo
 The good ol' [ADetailer](https://github.com/Bing-su/adetailer) extension, which performs automatic masking and inpainting, completely rewritten for [Forge Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo), now ***lighter, faster, and prettier*** :tm:
 
-- **Download ZIP:** `68 KB` &rarr; `37 KB`
+- **Download ZIP:** `68 KB` &rarr; `38 KB`
 
 ## Features
 After a generation, use **YOLO** or **MediaPipe** model(s) to detect certain regions *(**e.g.** face)* to perform **Inpainting**, improving fine details automatically
+
+> [!Note]
+> Not taking feature requests ; this repo is only meant as the "official" fork that is guaranteed to work with **Forge Neo** ; if you need other features, consider [this fork](https://github.com/abzaloff/aadetailer-neoforge) instead
 
 ## Models
 On a fresh launch, this Extension will download the following **10** detector models into the `models/adetailer/` folder
@@ -64,7 +67,9 @@ On a fresh launch, this Extension will download the following **10** detector mo
 > [!Important]
 > The **YOLO** models must be in `.pt` format
 
+<br>
 <hr>
+<br>
 
 <pre align="center">
 Copyright (C) 2026 Bing-su
