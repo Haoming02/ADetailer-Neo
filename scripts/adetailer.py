@@ -66,8 +66,8 @@ from modules.processing import (
 from modules.sd_models import checkpoint_tiles
 from modules.sd_samplers import all_samplers as ALL_SAMPLERS
 from modules.sd_schedulers import schedulers as ALL_SCHEDULERS
+from modules.sd_vae import vae_dict
 from modules.shared import opts, state
-from modules_forge.main_entry import module_list
 
 PARAMS_TXT = "params.txt"
 
@@ -102,7 +102,7 @@ class AfterDetailerScript(scripts.Script):
         sampler_names: list[str] = [sampler.name for sampler in ALL_SAMPLERS]
         scheduler_names: list[str] = [x.label for x in ALL_SCHEDULERS]
         checkpoint_list: list[str] = checkpoint_tiles(use_short=True)
-        vae_list: list[str] = list(module_list.keys())
+        vae_list: list[str] = ["None", *sorted(vae_dict.keys())]
 
         webui_info = WebuiInfo(
             ad_model_list=ad_model_list,
@@ -341,13 +341,14 @@ class AfterDetailerScript(scripts.Script):
     def get_override_settings(self, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
 
-        if args.ad_use_checkpoint:
-            if args.ad_checkpoint not in (None, "None", "Use same checkpoint"):
-                d["sd_model_checkpoint"] = args.ad_checkpoint
+        if args.ad_use_checkpoint and args.ad_checkpoint is not None:
+            d["sd_model_checkpoint"] = args.ad_checkpoint
 
-        if args.ad_use_vae:
-            if args.ad_vae not in (None, "None", "Use same VAE"):
-                d["sd_vae"] = args.ad_vae
+        if args.ad_use_vae and args.ad_vae is not None:
+            if (name := args.ad_vae) == "None":
+                d["sd_vae"] = name
+            else:
+                d["sd_vae"] = vae_dict[name]
 
         return d
 
