@@ -12,7 +12,7 @@ from modules.ui_components import FormColumn, FormRow, InputAccordion
 
 from . import __version__
 from .args import ALL_ARGS, MASK_MERGE_INVERT
-from .controlnet import get_cn_models, get_cn_modules
+from .controlnet import CNET_AVAILABLE, get_cn_models, get_cn_modules
 
 
 class Widgets(SimpleNamespace):
@@ -186,7 +186,7 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
             mask_preprocessing(w, n, is_img2img)
         with gr.Accordion("Inpaint Parameters", open=False):
             inpainting(w, n, is_img2img, webui_info)
-        with gr.Accordion("ControlNet", open=False):
+        with gr.Accordion("ControlNet", open=False, visible=CNET_AVAILABLE):
             controlnet(w, n, is_img2img)
 
     state = gr.State(lambda: state_init(w))

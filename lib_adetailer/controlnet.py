@@ -5,8 +5,14 @@ if TYPE_CHECKING:
     from modules.processing import StableDiffusionProcessingImg2Img
 
 import numpy as np
-from lib_controlnet import external_code, global_state
-from lib_controlnet.external_code import ControlNetUnit
+
+try:
+    from lib_controlnet import external_code, global_state
+    from lib_controlnet.external_code import ControlNetUnit
+except ImportError:
+    CNET_AVAILABLE = False
+else:
+    CNET_AVAILABLE = True
 
 from modules import scripts
 
@@ -90,19 +96,28 @@ class ControlNetExt:
         p.script_args_value.extend(script_args)
 
 
-def get_cn_models() -> list[str]:
-    models = set()
-    for mod in SUPPORTED_TYPES:
-        models.update(global_state.get_filtered_controlnet_names(mod))
-    models.remove("None")
+if CNET_AVAILABLE:
 
-    return ["None", "Passthrough", *sorted(models)]
+    def get_cn_models() -> list[str]:
+        models = set()
+        for mod in SUPPORTED_TYPES:
+            models.update(global_state.get_filtered_controlnet_names(mod))
+        models.remove("None")
 
+        return ["None", "Passthrough", *sorted(models)]
 
-def get_cn_modules() -> list[str]:
-    modules = set()
-    for mod in SUPPORTED_TYPES:
-        modules.update(global_state.get_filtered_preprocessors(mod))
-    modules.remove("None")
+    def get_cn_modules() -> list[str]:
+        modules = set()
+        for mod in SUPPORTED_TYPES:
+            modules.update(global_state.get_filtered_preprocessors(mod))
+        modules.remove("None")
 
-    return ["None", *sorted(modules)]
+        return ["None", *sorted(modules)]
+
+else:
+
+    def get_cn_models() -> list[str]:
+        return ["None"]
+
+    def get_cn_modules() -> list[str]:
+        return ["None"]
