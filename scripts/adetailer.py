@@ -528,9 +528,14 @@ class AfterDetailerScript(scripts.Script):
             merge_invert=args.ad_mask_merge_invert,
         )
 
-        if is_img2img_inpaint(p) and not is_inpaint_only_masked(p):
+        _masked: bool = len(masks) > 0
+
+        if _masked and is_img2img_inpaint(p) and is_inpaint_only_masked(p):
             image_mask = self.get_image_mask(p)
             masks = self.inpaint_mask_filter(image_mask, masks)
+            if len(masks) == 0:
+                print('No detected mask within "Only masked" Inpaint area...')
+
         return masks
 
     @staticmethod
@@ -569,8 +574,7 @@ class AfterDetailerScript(scripts.Script):
     def inpaint_mask_filter(
         img2img_mask: Image.Image, ad_mask: list[Image.Image]
     ) -> list[Image.Image]:
-        if ad_mask and img2img_mask.size != ad_mask[0].size:
-            img2img_mask = img2img_mask.resize(ad_mask[0].size, resample=Image.LANCZOS)
+        assert all(img2img_mask.size == mask.size for mask in ad_mask)
         return [mask for mask in ad_mask if has_intersection(img2img_mask, mask)]
 
     @staticmethod
@@ -716,6 +720,9 @@ class AfterDetailerScript(scripts.Script):
             return False
 
         masks = self.pred_preprocessing(p, pred, args)
+        if not masks:
+            return False
+
         shared.state.assign_current_image(pred.preview)
 
         self.save_image(
