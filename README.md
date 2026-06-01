@@ -3,6 +3,10 @@ The good ol' [ADetailer](https://github.com/Bing-su/adetailer) extension, which 
 
 - **Download ZIP:** `68 KB` &rarr; `38 KB`
 
+> [!Caution]
+> If you have installed **any** other version of `ADetailer` before, please review the **Settings** and **UI Defaults** related to `Adetailer`, as some older values are incompatible<br>
+> *(or just delete `config.json` and `ui-config.json` to reset **everything**)*
+
 ## Features
 After a generation, use **YOLO** or **MediaPipe** model(s) to detect certain regions *(**e.g.** face)* to perform **Inpainting**, improving fine details automatically
 
