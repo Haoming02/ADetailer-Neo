@@ -101,7 +101,7 @@ class AfterDetailerScript(scripts.Script):
         ad_model_list: list[str] = list(model_mapping.keys())
         sampler_names: list[str] = [sampler.name for sampler in ALL_SAMPLERS]
         scheduler_names: list[str] = [x.label for x in ALL_SCHEDULERS]
-        checkpoint_list: list[str] = checkpoint_tiles(use_short=True)
+        checkpoint_list: list[str] = checkpoint_tiles(use_short=True) or ["None"]
         vae_list: list[str] = ["None", *sorted(vae_dict.keys())]
 
         webui_info = WebuiInfo(

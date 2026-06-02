@@ -497,7 +497,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                 w.ad_checkpoint = gr.Dropdown(
                     label="ADetailer Checkpoint",
                     choices=webui_info.checkpoints_list,
-                    value=webui_info.checkpoints_list[0],
+                    value=webui_info.checkpoints_list[0] if webui_info.checkpoints_list else "None",
                     visible=False,
                     elem_id=eid("ad_checkpoint"),
                 )
@@ -519,7 +519,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                 w.ad_vae = gr.Dropdown(
                     label="ADetailer VAE",
                     choices=webui_info.vae_list,
-                    value=webui_info.vae_list[0],
+                    value=webui_info.vae_list[0] if webui_info.vae_list else "None",
                     visible=False,
                     elem_id=eid("ad_vae"),
                 )
