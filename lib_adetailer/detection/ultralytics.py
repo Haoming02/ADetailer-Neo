@@ -7,6 +7,8 @@ if TYPE_CHECKING:
 import cv2
 from PIL import Image
 
+from modules.shared import opts
+
 from ..utils import ensure_pil_image
 from .common import PredictOutput, create_mask_from_bbox
 
@@ -26,7 +28,12 @@ def ultralytics_predict(
         if parsed := [c.strip() for c in classes.split(",") if c.strip()]:
             model.set_classes(parsed)
 
-    pred = model(image, conf=confidence, device=device)
+    pred = model(
+        image,
+        conf=confidence,
+        device=device,
+        imgsz=1024 if getattr(opts, "ad_hd_yolo", False) else 640,
+    )
 
     bboxes = pred[0].boxes.xyxy.cpu().numpy()
     if bboxes.size == 0:

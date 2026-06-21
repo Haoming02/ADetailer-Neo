@@ -916,6 +916,15 @@ def on_ui_settings():
     )
 
     shared.opts.add_option(
+        "ad_hd_yolo",
+        shared.OptionInfo(
+            False,
+            label="Use 1024x1024 resolution for Ultralytics models",
+            **args,
+        ).info("default is 640x640"),
+    )
+
+    shared.opts.add_option(
         "ad_match_inpaint_bbox_size",
         shared.OptionInfo(
             default=InpaintBBoxMatchMode.STRICT.value,
