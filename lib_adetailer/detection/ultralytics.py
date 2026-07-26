@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -11,6 +12,22 @@ from modules.shared import opts
 
 from ..utils import ensure_pil_image
 from .common import PredictOutput, create_mask_from_bbox
+
+
+@contextmanager
+def screw_yolo():
+    # why the actual #### do I need to do this?
+
+    orig1 = os.makedirs
+    orig2 = os.mkdir
+
+    os.makedirs = lambda *args, **kwargs: None
+    os.mkdir = lambda *args, **kwargs: None
+
+    yield
+
+    os.makedirs = orig1
+    os.mkdir = orig2
 
 
 def ultralytics_predict(
@@ -28,12 +45,13 @@ def ultralytics_predict(
         if parsed := [c.strip() for c in classes.split(",") if c.strip()]:
             model.set_classes(parsed)
 
-    pred = model(
-        image,
-        conf=confidence,
-        device=device,
-        imgsz=1024 if getattr(opts, "ad_hd_yolo", False) else 640,
-    )
+    with screw_yolo():
+        pred = model(
+            image,
+            conf=confidence,
+            device=device,
+            imgsz=1024 if getattr(opts, "ad_hd_yolo", False) else 640,
+        )
 
     bboxes = pred[0].boxes.xyxy.cpu().numpy()
     if bboxes.size == 0:
