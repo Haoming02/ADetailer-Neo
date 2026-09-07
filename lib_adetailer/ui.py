@@ -132,6 +132,12 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
             visible=True,
             elem_id=eid("ad_tab_enable_styles"),
         )
+        w.ad_tab_shuffle_sep = gr.Checkbox(
+            label=f"Shuffle [SEP] ({ordinal(n + 1)})",
+            value=False,
+            visible=True,
+            elem_id=eid("ad_tab_shuffle_sep"),
+        )
 
     with FormColumn():
         w.ad_model = gr.Dropdown(
