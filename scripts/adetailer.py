@@ -1,4 +1,5 @@
 import os
+import random
 import re
 from collections.abc import Sequence
 from copy import copy
@@ -246,9 +247,14 @@ class AfterDetailerScript(scripts.Script):
         i: int,
         default: str,
         replacements: list["PromptSR"],
+        shuffle_sep: bool = False,
     ) -> list[str]:
         prompts = re.split(r"\s*\[SEP\]\s*", ad_prompt)
         blank_replacement = self.prompt_blank_replacement(all_prompts, i, default)
+        if shuffle_sep and len(prompts) > 1:
+            msg = f"Shuffling [SEP] prompts for prompt {i + 1}"
+            print(msg)
+            random.shuffle(prompts)
         for n in range(len(prompts)):
             if not prompts[n]:
                 prompts[n] = blank_replacement
@@ -268,6 +274,7 @@ class AfterDetailerScript(scripts.Script):
             i=i,
             default=p.prompt,
             replacements=prompt_sr,
+            shuffle_sep=args.ad_tab_shuffle_sep,
         )
         negative_prompt = self._get_prompt(
             ad_prompt=args.ad_negative_prompt,
@@ -275,6 +282,7 @@ class AfterDetailerScript(scripts.Script):
             i=i,
             default=p.negative_prompt,
             replacements=prompt_sr,
+            shuffle_sep=args.ad_tab_shuffle_sep,
         )
 
         return prompt, negative_prompt

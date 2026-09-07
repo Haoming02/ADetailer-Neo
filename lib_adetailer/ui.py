@@ -125,12 +125,18 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
             value=(n == 0),
             label=f"Enable {ordinal(n + 1)} Tab",
             elem_id=eid("ad_tab_enable"),
-        )    
+        )
         w.ad_tab_enable_styles = gr.Checkbox(
             label=f"Enable styles ({ordinal(n + 1)})",
             value=True,
             visible=True,
             elem_id=eid("ad_tab_enable_styles"),
+        )
+        w.ad_tab_shuffle_sep = gr.Checkbox(
+            label=f"Shuffle [SEP] ({ordinal(n + 1)})",
+            value=False,
+            visible=True,
+            elem_id=eid("ad_tab_shuffle_sep"),
         )
 
     with FormColumn():
