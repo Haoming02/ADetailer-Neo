@@ -47,6 +47,7 @@ class ADetailerArgs(BaseModel):
     ad_model_classes: str = ""
     ad_tab_enable: bool = True
     ad_tab_enable_styles: bool = True
+    ad_tab_shuffle_sep: bool = False
     ad_prompt: str = ""
     ad_negative_prompt: str = ""
     ad_confidence: float = Field(default=0.3, ge=0.0, le=1.0)
@@ -228,6 +229,7 @@ _all_args = [
     ("ad_model_classes", "ADetailer model classes"),
     ("ad_tab_enable", "ADetailer tab enable"),
     ("ad_tab_enable_styles", "ADetailer tab enable styles"),
+    ("ad_tab_shuffle_sep", "ADetailer tab shuffle [SEP]"),
     ("ad_prompt", "ADetailer prompt"),
     ("ad_negative_prompt", "ADetailer negative prompt"),
     ("ad_confidence", "ADetailer confidence"),
