@@ -28,6 +28,7 @@ class WebuiInfo:
     t2i_button: gr.Button
     i2i_button: gr.Button
     checkpoints_list: list[str]
+    modules_list: list[str]
     vae_list: list[str]
 
 
@@ -208,9 +209,15 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
         v = d.get("ADetailer ControlNet guidance start/end" + suffix(n), None)
         return gr.skip() if v is None else gr.update(value=literal_eval(v))
 
+    def _split(d: dict):
+        v: str = d.get("ADetailer Modules" + suffix(n), None)
+        return gr.skip() if v is None else gr.update(value=v.split(", "))
+
     for attr, name in ALL_ARGS:
         if name == "ADetailer ControlNet guidance start/end":
             infotext_fields.append((getattr(w, attr), _parse))
+        elif name == "ADetailer Modules":
+            infotext_fields.append((getattr(w, attr), _split))
         else:
             infotext_fields.append((getattr(w, attr), name + suffix(n)))
 
@@ -510,7 +517,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                     show_progress=False,
                 )
 
-            with gr.Column(variant="compact"):
+            with gr.Column(variant="compact") as vae_ui:
                 w.ad_use_vae = gr.Checkbox(
                     value=False,
                     label="Use separate VAE",
@@ -531,6 +538,37 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                     queue=False,
                     show_progress=False,
                 )
+
+            with gr.Column(variant="compact", visible=False) as modules_ui:
+                w.ad_use_modules = gr.Checkbox(
+                    value=False,
+                    label="Use separate Modules",
+                    elem_id=eid("ad_use_modules"),
+                )
+                w.ad_modules = gr.Dropdown(
+                    label="ADetailer Modules",
+                    choices=webui_info.modules_list,
+                    value=[],
+                    multiselect=True,
+                    visible=False,
+                    elem_id=eid("ad_modules"),
+                )
+
+                w.ad_use_modules.change(
+                    fn=gr_interactive,
+                    inputs=[w.ad_use_modules],
+                    outputs=[w.ad_modules],
+                    queue=False,
+                    show_progress=False,
+                )
+
+            w.ad_use_checkpoint.change(
+                fn=lambda ckpt: [gr.update(visible=not ckpt), gr.update(visible=ckpt)],
+                inputs=[w.ad_use_checkpoint],
+                outputs=[vae_ui, modules_ui],
+                queue=False,
+                show_progress=False,
+            )
 
         with FormRow():
             w.ad_restore_face = gr.Checkbox(

@@ -72,6 +72,8 @@ class ADetailerArgs(BaseModel):
     ad_checkpoint: Optional[str] = None
     ad_use_vae: bool = False
     ad_vae: Optional[str] = None
+    ad_use_modules: bool = False
+    ad_modules: Optional[list[str]] = None
     ad_use_sampler: bool = False
     ad_sampler: str = "Use same sampler"
     ad_scheduler: str = "Use same scheduler"
@@ -176,6 +178,13 @@ class ADetailerArgs(BaseModel):
             ],
         )
         ppop(
+            "ADetailer use separate Modules",
+            [
+                "ADetailer use separate Modules",
+                "ADetailer Modules",
+            ],
+        )
+        ppop(
             "ADetailer use separate sampler",
             [
                 "ADetailer use separate sampler",
@@ -209,6 +218,8 @@ class ADetailerArgs(BaseModel):
 
         if _CNET_GSE in p:
             p[_CNET_GSE] = str(p.pop(_CNET_GSE))
+        if "ADetailer Modules" in p:
+            p["ADetailer Modules"] = str(", ".join(p.pop("ADetailer Modules")))
 
         if suffix:
             p = {k + suffix: v for k, v in p.items()}
@@ -252,6 +263,8 @@ _all_args = [
     ("ad_checkpoint", "ADetailer checkpoint"),
     ("ad_use_vae", "ADetailer use separate VAE"),
     ("ad_vae", "ADetailer VAE"),
+    ("ad_use_modules", "ADetailer use separate Modules"),
+    ("ad_modules", "ADetailer Modules"),
     ("ad_use_sampler", "ADetailer use separate sampler"),
     ("ad_sampler", "ADetailer sampler"),
     ("ad_scheduler", "ADetailer scheduler"),

@@ -63,11 +63,11 @@ from modules.processing import (
     create_infotext,
     process_images,
 )
-from modules.sd_models import checkpoint_tiles
 from modules.sd_samplers import all_samplers as ALL_SAMPLERS
 from modules.sd_schedulers import schedulers as ALL_SCHEDULERS
 from modules.sd_vae import vae_dict
 from modules.shared import opts, state
+from modules_forge import main_entry
 
 PARAMS_TXT = "params.txt"
 
@@ -101,7 +101,7 @@ class AfterDetailerScript(scripts.Script):
         ad_model_list: list[str] = list(model_mapping.keys())
         sampler_names: list[str] = [sampler.name for sampler in ALL_SAMPLERS]
         scheduler_names: list[str] = [x.label for x in ALL_SCHEDULERS]
-        checkpoint_list: list[str] = checkpoint_tiles(use_short=True)
+        checkpoints, modules = main_entry.refresh_models()
         vae_list: list[str] = ["None", *sorted(vae_dict.keys())]
 
         webui_info = WebuiInfo(
@@ -110,7 +110,8 @@ class AfterDetailerScript(scripts.Script):
             scheduler_names=scheduler_names,
             t2i_button=txt2img_submit_button,
             i2i_button=img2img_submit_button,
-            checkpoints_list=checkpoint_list,
+            checkpoints_list=checkpoints,
+            modules_list=modules,
             vae_list=vae_list,
         )
 
@@ -341,14 +342,15 @@ class AfterDetailerScript(scripts.Script):
     def get_override_settings(self, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
 
-        if args.ad_use_checkpoint and args.ad_checkpoint is not None:
-            d["sd_model_checkpoint"] = args.ad_checkpoint
+        if args.ad_use_checkpoint:
+            if args.ad_checkpoint is not None:
+                d["sd_model_checkpoint"] = args.ad_checkpoint
+            if args.ad_use_modules:
+                d["forge_additional_modules"] = args.ad_modules
 
-        if args.ad_use_vae and args.ad_vae is not None:
-            if (name := args.ad_vae) == "None":
-                d["sd_vae"] = name
-            else:
-                d["sd_vae"] = vae_dict[name]
+        else:
+            if args.ad_use_vae:
+                d["sd_vae"] = vae_dict.get(args.ad_vae, "None")
 
         return d
 
