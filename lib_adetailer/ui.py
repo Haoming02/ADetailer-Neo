@@ -8,6 +8,7 @@ import gradio as gr
 from gradio_rangeslider import RangeSlider
 
 from modules.launch_utils import is_installed
+from modules.shared import opts
 from modules.ui_components import FormColumn, FormRow, InputAccordion
 
 from . import __version__
@@ -46,6 +47,10 @@ def ordinal(n: int) -> str:
 
 def suffix(n: int, c: str = " ") -> str:
     return "" if n == 0 else c + ordinal(n + 1)
+
+
+def p_suffix(n: int, c: str = " ") -> str:
+    return "" if (not opts.ad_ui_defaults or n == 0) else c + ordinal(n + 1)
 
 
 def on_widget_change(state: dict, value: Any, *, attr: str):
@@ -129,14 +134,14 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
 
     with FormColumn():
         w.ad_model = gr.Dropdown(
-            label="ADetailer Detector" + suffix(n),
+            label="ADetailer Detector" + p_suffix(n),
             choices=["None", *webui_info.ad_model_list],
             value="None",
             type="value",
             elem_id=eid("ad_model"),
         )
         w.ad_model_classes = gr.Textbox(
-            label="Detector Classes" + suffix(n),
+            label="Detector Classes" + p_suffix(n),
             value="",
             visible=False,
             interactive=is_installed("clip"),
@@ -162,22 +167,24 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Row(elem_id=eid("ad_toprow_prompt")):
                 w.ad_prompt = gr.Textbox(
                     value="",
-                    label="ad_prompt" + suffix(n),
+                    label="ad_prompt" + p_suffix(n),
                     show_label=False,
                     lines=3,
                     max_lines=6,
-                    placeholder=f"ADetailer Prompt{suffix(n)}"
+                    placeholder="ADetailer Prompt"
+                    + p_suffix(n)
                     + "\n(if blank, the original prompt is used)",
                     elem_id=eid("ad_prompt"),
                 )
             with gr.Row(elem_id=eid("ad_toprow_negative_prompt")):
                 w.ad_negative_prompt = gr.Textbox(
                     value="",
-                    label="ad_negative_prompt" + suffix(n),
+                    label="ad_negative_prompt" + p_suffix(n),
                     show_label=False,
                     lines=3,
                     max_lines=6,
-                    placeholder=f"ADetailer Negative Prompt{suffix(n)}"
+                    placeholder="ADetailer Negative Prompt"
+                    + p_suffix(n)
                     + "\n(if blank, the original negative prompt is used)",
                     elem_id=eid("ad_negative_prompt"),
                 )
@@ -198,6 +205,8 @@ def _ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
         widget = getattr(w, attr)
         on_change = partial(on_widget_change, attr=attr)
         widget.change(fn=on_change, inputs=[state, widget], outputs=state, queue=False)
+        if not opts.ad_ui_defaults:
+            widget.do_not_save_to_config = True
 
     all_inputs = [state, *w.tolist()]
     target_button = webui_info.i2i_button if is_img2img else webui_info.t2i_button
@@ -232,7 +241,7 @@ def detection(w: Widgets, n: int, is_img2img: bool):
 
     with FormColumn():
         w.ad_confidence = gr.Slider(
-            label="Confidence Threshold",
+            label="Confidence Threshold" + p_suffix(n),
             minimum=0.0,
             maximum=1.0,
             step=0.05,
@@ -242,7 +251,7 @@ def detection(w: Widgets, n: int, is_img2img: bool):
 
         with FormRow():
             w.ad_mask_min_ratio = gr.Slider(
-                label="Min Area Ratio",
+                label="Min Area Ratio" + p_suffix(n),
                 minimum=0.0,
                 maximum=1.0,
                 step=0.05,
@@ -250,7 +259,7 @@ def detection(w: Widgets, n: int, is_img2img: bool):
                 elem_id=eid("ad_mask_min_ratio"),
             )
             w.ad_mask_max_ratio = gr.Slider(
-                label="Max Area Ratio",
+                label="Max Area Ratio" + p_suffix(n),
                 minimum=0.0,
                 maximum=1.0,
                 step=0.05,
@@ -260,7 +269,7 @@ def detection(w: Widgets, n: int, is_img2img: bool):
 
         with FormRow():
             w.ad_mask_k = gr.Slider(
-                label="Keep only the top n masks",
+                label="Keep only the top n masks" + p_suffix(n),
                 info="0 for unlimited",
                 minimum=0,
                 maximum=10,
@@ -269,7 +278,7 @@ def detection(w: Widgets, n: int, is_img2img: bool):
                 elem_id=eid("ad_mask_k"),
             )
             w.ad_mask_filter_method = gr.Radio(
-                label="Filter Method",
+                label="Filter Method" + p_suffix(n),
                 choices=("Area", "Confidence"),
                 value="Area",
                 elem_id=eid("ad_mask_filter_method"),
@@ -282,7 +291,7 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
     with FormColumn():
         with FormRow():
             w.ad_x_offset = gr.Slider(
-                label="Offset: Right (+) / Left(-)",
+                label="Offset: Right (+) / Left(-)" + p_suffix(n),
                 minimum=-256,
                 maximum=256,
                 step=4,
@@ -290,7 +299,7 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
                 elem_id=eid("ad_x_offset"),
             )
             w.ad_y_offset = gr.Slider(
-                label="Offset: Up (+) / Down (-)",
+                label="Offset: Up (+) / Down (-)" + p_suffix(n),
                 minimum=-256,
                 maximum=256,
                 step=4,
@@ -298,7 +307,7 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
                 elem_id=eid("ad_y_offset"),
             )
             w.ad_dilate_erode = gr.Slider(
-                label="Mask: Dilation (+) / Erosion (-)",
+                label="Mask: Dilation (+) / Erosion (-)" + p_suffix(n),
                 minimum=-256,
                 maximum=256,
                 step=4,
@@ -307,7 +316,7 @@ def mask_preprocessing(w: Widgets, n: int, is_img2img: bool):
             )
 
         w.ad_mask_merge_invert = gr.Radio(
-            label="Masks Merge Mode",
+            label="Masks Merge Mode" + p_suffix(n),
             choices=MASK_MERGE_INVERT,
             value="None",
             elem_id=eid("ad_mask_merge_invert"),
@@ -319,7 +328,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
 
     with FormColumn():
         w.ad_mask_blur = gr.Slider(
-            label="Inpaint Mask Blur",
+            label="Inpaint Mask Blur" + p_suffix(n),
             minimum=0,
             maximum=64,
             step=4,
@@ -331,11 +340,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact"):
                 w.ad_inpaint_only_masked = gr.Checkbox(
                     value=True,
-                    label="Inpaint Only Masked",
+                    label="Inpaint Only Masked" + p_suffix(n),
                     elem_id=eid("ad_inpaint_only_masked"),
                 )
                 w.ad_inpaint_only_masked_padding = gr.Slider(
-                    label="Only masked padding, pixels",
+                    label="Only masked padding" + p_suffix(n),
                     minimum=0,
                     maximum=256,
                     step=4,
@@ -355,11 +364,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact"):
                 w.ad_use_noise_multiplier = gr.Checkbox(
                     value=False,
-                    label="Use separate Noise Multiplier",
+                    label="Use separate Noise Multiplier" + p_suffix(n),
                     elem_id=eid("ad_use_noise_multiplier"),
                 )
                 w.ad_noise_multiplier = gr.Slider(
-                    label="Adetailer Noise Multiplier",
+                    label="Adetailer Noise Multiplier" + p_suffix(n),
                     minimum=0.5,
                     maximum=1.5,
                     step=0.05,
@@ -379,7 +388,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
         with gr.Column(variant="compact"):
             w.ad_use_sampler = gr.Checkbox(
                 value=False,
-                label="Use different Sampler/Scheduler",
+                label="Use different Sampler/Scheduler" + p_suffix(n),
                 elem_id=eid("ad_use_sampler"),
             )
 
@@ -388,14 +397,14 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
 
             with FormRow():
                 w.ad_sampler = gr.Dropdown(
-                    label="ADetailer Sampler",
+                    label="ADetailer Sampler" + p_suffix(n),
                     choices=sampler_names,
                     value=sampler_names[0],
                     visible=False,
                     elem_id=eid("ad_sampler"),
                 )
                 w.ad_scheduler = gr.Dropdown(
-                    label="ADetailer Scheduler",
+                    label="ADetailer Scheduler" + p_suffix(n),
                     choices=scheduler_names,
                     value=scheduler_names[0],
                     visible=False,
@@ -413,13 +422,13 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
         with gr.Column(variant="compact"):
             w.ad_use_inpaint_width_height = gr.Checkbox(
                 value=False,
-                label="Use separate Width/Height",
+                label="Use separate Width/Height" + p_suffix(n),
                 elem_id=eid("ad_use_inpaint_width_height"),
             )
 
             with FormRow():
                 w.ad_inpaint_width = gr.Slider(
-                    label="Inpaint Width",
+                    label="Inpaint Width" + p_suffix(n),
                     minimum=64,
                     maximum=2048,
                     step=64,
@@ -428,7 +437,7 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
                     elem_id=eid("ad_inpaint_width"),
                 )
                 w.ad_inpaint_height = gr.Slider(
-                    label="Inpaint Height",
+                    label="Inpaint Height" + p_suffix(n),
                     minimum=64,
                     maximum=2048,
                     step=64,
@@ -449,11 +458,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact"):
                 w.ad_use_steps = gr.Checkbox(
                     value=False,
-                    label="Use separate Steps",
+                    label="Use separate Steps" + p_suffix(n),
                     elem_id=eid("ad_use_steps"),
                 )
                 w.ad_steps = gr.Slider(
-                    label="ADetailer Steps",
+                    label="ADetailer Steps" + p_suffix(n),
                     minimum=1,
                     maximum=150,
                     step=1,
@@ -473,11 +482,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact"):
                 w.ad_use_cfg_scale = gr.Checkbox(
                     value=False,
-                    label="Use separate CFG Scale",
+                    label="Use separate CFG Scale" + p_suffix(n),
                     elem_id=eid("ad_use_cfg_scale"),
                 )
                 w.ad_cfg_scale = gr.Slider(
-                    label="ADetailer CFG Scale",
+                    label="ADetailer CFG Scale" + p_suffix(n),
                     minimum=1.0,
                     maximum=24.0,
                     step=0.5,
@@ -498,11 +507,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact"):
                 w.ad_use_checkpoint = gr.Checkbox(
                     value=False,
-                    label="Use separate Checkpoint",
+                    label="Use separate Checkpoint" + p_suffix(n),
                     elem_id=eid("ad_use_checkpoint"),
                 )
                 w.ad_checkpoint = gr.Dropdown(
-                    label="ADetailer Checkpoint",
+                    label="ADetailer Checkpoint" + p_suffix(n),
                     choices=webui_info.checkpoints_list,
                     value=webui_info.checkpoints_list[0],
                     visible=False,
@@ -520,11 +529,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact") as vae_ui:
                 w.ad_use_vae = gr.Checkbox(
                     value=False,
-                    label="Use separate VAE",
+                    label="Use separate VAE" + p_suffix(n),
                     elem_id=eid("ad_use_vae"),
                 )
                 w.ad_vae = gr.Dropdown(
-                    label="ADetailer VAE",
+                    label="ADetailer VAE" + p_suffix(n),
                     choices=webui_info.vae_list,
                     value=webui_info.vae_list[0],
                     visible=False,
@@ -542,11 +551,11 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
             with gr.Column(variant="compact", visible=False) as modules_ui:
                 w.ad_use_modules = gr.Checkbox(
                     value=False,
-                    label="Use separate Modules",
+                    label="Use separate Modules" + p_suffix(n),
                     elem_id=eid("ad_use_modules"),
                 )
                 w.ad_modules = gr.Dropdown(
-                    label="ADetailer Modules",
+                    label="ADetailer Modules" + p_suffix(n),
                     choices=webui_info.modules_list,
                     value=[],
                     multiselect=True,
@@ -573,12 +582,12 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
         with FormRow():
             w.ad_restore_face = gr.Checkbox(
                 value=False,
-                label="Restore Faces after ADetailer",
+                label="Restore Faces after ADetailer" + p_suffix(n),
                 elem_id=eid("ad_restore_face"),
             )
 
             w.ad_denoising_strength = gr.Slider(
-                label="Inpaint Denoising Strength",
+                label="Inpaint Denoising Strength" + p_suffix(n),
                 minimum=0.0,
                 maximum=1.0,
                 step=0.05,
@@ -593,14 +602,14 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
     with FormColumn():
         with FormRow():
             w.ad_controlnet_module = gr.Dropdown(
-                label="ControlNet Module",
+                label="ControlNet Module" + p_suffix(n),
                 choices=get_cn_modules(),
                 value="None",
                 type="value",
                 elem_id=eid("ad_controlnet_module"),
             )
             w.ad_controlnet_model = gr.Dropdown(
-                label="ControlNet Model",
+                label="ControlNet Model" + p_suffix(n),
                 choices=get_cn_models(),
                 value="None",
                 type="value",
@@ -609,7 +618,7 @@ def controlnet(w: Widgets, n: int, is_img2img: bool):
 
         with FormRow():
             w.ad_controlnet_weight = gr.Slider(
-                label="ControlNet Weight",
+                label="ControlNet Weight" + p_suffix(n),
                 minimum=0.0,
                 maximum=1.0,
                 step=0.05,

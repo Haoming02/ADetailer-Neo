@@ -899,6 +899,11 @@ def on_ui_settings():
     )
 
     shared.opts.add_option(
+        "ad_ui_defaults",
+        shared.OptionInfo(True, label='Enable "UI Defaults" integration', **args),
+    )
+
+    shared.opts.add_option(
         "ad_same_seed_for_each_tab",
         shared.OptionInfo(False, label="Use the same Seed for every tab", **args),
     )
